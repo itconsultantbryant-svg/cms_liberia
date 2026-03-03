@@ -1,0 +1,15 @@
+{
+  "name": "church-management-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Church Management System - full stack",
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build && cd ../backend && npm ci && npm run init-db && npm run migrate",
+    "start": "cd backend && node server.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm start"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
