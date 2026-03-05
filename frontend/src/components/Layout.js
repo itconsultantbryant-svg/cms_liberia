@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { SIDEBAR_CONFIG, canShowSidebarItem } from '../config/permissions';
+import { SIDEBAR_SECTIONS, canShowSidebarItem } from '../config/permissions';
 import './Layout.css';
 
 const Layout = ({ children }) => {
@@ -90,9 +90,11 @@ const Layout = ({ children }) => {
     return <div>Loading...</div>;
   }
 
-  // Sub-users see limited navigation; branch users see items by permission/role
-  const isSubUser = user?.userType === 'sub_user';
-  const sidebarItems = SIDEBAR_CONFIG.filter(item => canShowSidebarItem(item, user));
+  // Sub-users see limited navigation; branch users see items by permission/role; admin sees all
+  const sidebarSections = SIDEBAR_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(item => canShowSidebarItem(item, user)),
+  })).filter(section => section.items.length > 0);
 
   return (
     <div className="layout">
@@ -103,15 +105,26 @@ const Layout = ({ children }) => {
           </Link>
         </div>
         <nav className="sidebar-nav">
-          {sidebarItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`sidebar-link ${isActive(item.path) ? 'active' : ''}`}
-            >
-              <span className="sidebar-icon">{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
+          {sidebarSections.map(section => (
+            <div key={section.title} className="sidebar-section">
+              <div className="sidebar-section-title">{section.title}</div>
+              {section.items.map(item => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`sidebar-link ${isActive(item.path) ? 'active' : ''}`}
+                  title={item.description}
+                >
+                  <span className="sidebar-icon">{item.icon}</span>
+                  <span className="sidebar-link-content">
+                    <span className="sidebar-link-label">{item.label}</span>
+                    {item.description && (
+                      <span className="sidebar-link-desc">{item.description}</span>
+                    )}
+                  </span>
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
       </aside>
