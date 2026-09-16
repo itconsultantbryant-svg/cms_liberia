@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS staff (
   department_id INTEGER, -- Department assignment
   employment_date DATE,
   salary DECIMAL(15, 2),
-  currency TEXT DEFAULT 'USD' CHECK(currency IN ('USD', 'LRD')),
+  currency TEXT DEFAULT 'USD',
   address TEXT,
   city TEXT,
   state TEXT,
@@ -37,6 +37,13 @@ CREATE TABLE IF NOT EXISTS sub_users (
   position TEXT NOT NULL, -- e.g., 'Secretary', 'Assistant', etc.
   permissions TEXT NOT NULL, -- JSON array of permissions: ['add_members', 'record_attendance', 'record_collections', 'view_reports']
   is_active INTEGER DEFAULT 1,
+  church_id INTEGER,
+  failed_login_attempts INTEGER DEFAULT 0,
+  locked_until TEXT,
+  token_version INTEGER DEFAULT 0,
+  password_changed_at TEXT,
+  mfa_enabled INTEGER DEFAULT 0,
+  mfa_secret TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,

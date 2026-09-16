@@ -1,0 +1,94 @@
+.cao-page {
+  max-width: 1200px;
+}
+
+.cao-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.cao-header h1 {
+  margin: 0 0 6px;
+}
+
+.cao-sub {
+  margin: 0;
+  color: #666;
+}
+
+.cao-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cao-tile {
+  background: var(--church-primary, #2c3e50);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 100px;
+  transition: transform 0.15s ease;
+}
+
+.cao-tile:hover {
+  transform: translateY(-2px);
+  color: #fff;
+}
+
+.cao-icon {
+  font-size: 1.2rem;
+}
+
+.cao-label {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.cao-value {
+  font-size: 1.25rem;
+  margin-top: auto;
+}
+
+.cao-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cao-panel {
+  padding: 16px 18px;
+}
+
+.cao-panel h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.cao-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.cao-list li {
+  margin-bottom: 6px;
+}
+
+.muted {
+  color: #888;
+}
+
+.error-message {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+}

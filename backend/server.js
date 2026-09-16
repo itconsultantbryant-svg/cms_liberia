@@ -1,83 +1,158 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+const { getJwtSecret } = require('./utils/authSecurity');
+const { assertProductionSecrets } = require('./utils/securityHardening');
+const { mountApi } = require('./routes');
+const { apiLimiter, writeLimiter } = require('./middleware/rateLimiters');
+const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const { originCheck, rejectDangerousBody } = require('./middleware/security');
+const { logger, requestLogMiddleware } = require('./utils/logger');
+const { isProductionLike } = require('./config/environments');
+
+// Fail fast if JWT / production secrets misconfigured
+try {
+  getJwtSecret();
+  assertProductionSecrets();
+} catch (e) {
+  console.error(e.message);
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
+const prodLike = isProductionLike();
 
-// Ensure upload directories exist (for member photos, communications attachments)
-const uploadsDir = path.join(__dirname, 'uploads');
+// Behind Render / nginx / load balancers
+if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true' || prodLike) {
+  app.set('trust proxy', 1);
+}
+
+// Ensure upload directories exist (optional UPLOADS_PATH override)
+const uploadsDir = process.env.UPLOADS_PATH
+  ? path.resolve(process.env.UPLOADS_PATH)
+  : path.join(__dirname, 'uploads');
 const communicationsUploads = path.join(uploadsDir, 'communications');
+const brandingUploads = path.join(uploadsDir, 'branding');
+const documentsUploads = path.join(uploadsDir, 'documents');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(communicationsUploads)) fs.mkdirSync(communicationsUploads, { recursive: true });
+if (!fs.existsSync(brandingUploads)) fs.mkdirSync(brandingUploads, { recursive: true });
+if (!fs.existsSync(documentsUploads)) fs.mkdirSync(documentsUploads, { recursive: true });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Security headers (XSS, clickjacking, MIME sniffing, etc.)
+app.use(helmet({
+  contentSecurityPolicy: prodLike
+    ? {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"]
+        }
+      }
+    : false,
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'no-referrer' }
+}));
+
+// CORS
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const defaultDevOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3004',
+  'http://127.0.0.1:3004',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000'
+];
+const effectiveOrigins = corsOrigins.length
+  ? corsOrigins
+  : (prodLike ? [] : defaultDevOrigins);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (effectiveOrigins.includes(origin)) return callback(null, true);
+    if (!prodLike && defaultDevOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true
+}));
+
+// Phase 36 — gzip/brotli-capable response compression for JSON & static
+app.use(compression({ threshold: 1024 }));
+
+// Phase 39 — request logging + correlation id
+app.use(requestLogMiddleware);
+
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/roles', require('./routes/roles'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/members', require('./routes/members'));
-app.use('/api/attendance', require('./routes/attendance'));
-app.use('/api/collections', require('./routes/collections'));
-app.use('/api/events', require('./routes/events'));
-app.use('/api/groups', require('./routes/groups'));
-app.use('/api/branches', require('./routes/branches'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/messaging', require('./routes/messaging'));
-app.use('/api/requests', require('./routes/requests'));
-app.use('/api/departments', require('./routes/departments'));
-app.use('/api/staff', require('./routes/staff'));
-app.use('/api/sub-users', require('./routes/subUsers'));
-app.use('/api/approvals', require('./routes/approvals'));
-app.use('/api/finance-reports', require('./routes/financeReports'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/payroll', require('./routes/payroll'));
-app.use('/api/communications', require('./routes/communications'));
+// Phase 35 — Origin check on mutations + reject dangerous HTML in body fields
+app.use('/api', originCheck(effectiveOrigins.length ? effectiveOrigins : defaultDevOrigins));
+app.use('/api', rejectDangerousBody);
+// Legacy public static for pre-Phase-33 paths only (branding thumbnails already uploaded).
+// Private tenant files under uploads/churches/** must use /api/files (auth or signed URL).
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    if (String(req.path || '').includes('/churches/')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Direct access to tenant storage is forbidden. Use /api/files.',
+        code: 'FILE_DIRECT_FORBIDDEN'
+      });
+    }
+    next();
+  },
+  express.static(uploadsDir)
+);
+
+// Phase 31 — global API rate limits (auth routes add stricter limiter)
+app.use('/api', apiLimiter);
+app.use('/api', writeLimiter);
+
+// Modular API mounts
+mountApi(app);
 
 // Root endpoint (API info; in production / serves the React app)
 if (!isProduction) {
   app.get('/', (req, res) => {
-    res.json({ 
+    res.json({
+      success: true,
       message: 'Church Management System API',
-      version: '1.0.0',
+      version: '1.1.0',
       status: 'running',
       timestamp: new Date().toISOString(),
-      endpoints: {
-        auth: '/api/auth',
-        members: '/api/members',
-        attendance: '/api/attendance',
-        collections: '/api/collections',
-        events: '/api/events',
-        groups: '/api/groups',
-        reports: '/api/reports',
-        roles: '/api/roles',
-        users: '/api/users'
-      }
+      catalog: '/api',
+      health: '/api/health',
+      architecture: '/api/meta/architecture'
     });
   });
 }
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running', timestamp: new Date().toISOString() });
-});
+// 404 for unknown API routes
+app.use('/api', notFoundHandler);
 
-// 404 handler for API routes (must be after all API routes)
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: 'Route not found', path: req.path });
-});
+// Global error handler (must be last)
+app.use(errorHandler);
 
-// Production: serve React build and SPA fallback
-if (isProduction) {
+// Production/staging: serve React build and SPA fallback
+if (isProduction || process.env.NODE_ENV === 'staging') {
   const frontendBuild = path.join(__dirname, '..', 'frontend', 'build');
   app.use(express.static(frontendBuild));
   app.get('*', (req, res) => {
@@ -86,6 +161,12 @@ if (isProduction) {
 }
 
 app.listen(PORT, () => {
+  logger.info('server_start', {
+    port: PORT,
+    env: process.env.NODE_ENV || 'development',
+    trustProxy: app.get('trust proxy') || false
+  });
   console.log(`Server running on port ${PORT}`);
 });
 
+module.exports = app;

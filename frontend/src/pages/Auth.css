@@ -29,6 +29,14 @@
   margin-bottom: 20px;
 }
 
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
 .auth-link {
   text-align: center;
   margin-top: 20px;

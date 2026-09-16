@@ -8,10 +8,16 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
     console.error('Error opening database:', err.message);
   } else {
     console.log('Connected to SQLite database');
+    // Phase 36 — performance pragmas
+    db.run('PRAGMA journal_mode = WAL');
+    db.run('PRAGMA synchronous = NORMAL');
+    db.run('PRAGMA foreign_keys = ON');
+    db.run('PRAGMA temp_store = MEMORY');
+    db.run('PRAGMA cache_size = -8000');
   }
 });
 
-// Enable foreign keys
+// Enable foreign keys (also set in connect callback)
 db.run('PRAGMA foreign_keys = ON');
 
 // Promisify database methods

@@ -9,7 +9,16 @@ vendor/
 
 # Database
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.db
+
+# Backups (Phase 34)
+backend/backups/
+
+# Demo credentials (Phase 38) — never commit
+backend/demo-credentials.local.json
+DEMO_CREDENTIALS.md
 
 # Logs
 logs/

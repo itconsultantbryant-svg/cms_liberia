@@ -20,6 +20,7 @@ const FinanceDashboard = () => {
     payrollPending: 0,
     payrollApproved: 0
   });
+  const [ledgerSummary, setLedgerSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -39,13 +40,16 @@ const FinanceDashboard = () => {
       setLoading(true);
       console.log('[Finance Dashboard] Fetching data...');
       
-      const [requestsRes, collectionsRes, reportsRes, staffRes, payrollRes] = await Promise.all([
+      const [requestsRes, collectionsRes, reportsRes, staffRes, payrollRes, ledgerRes] = await Promise.all([
         axios.get('/api/requests').catch(err => { return { data: [] }; }),
         axios.get('/api/collections/history').catch(err => { return { data: [] }; }),
         axios.get('/api/finance-reports').catch(err => { return { data: [] }; }),
         axios.get('/api/staff').catch(err => { return { data: [] }; }),
-        axios.get('/api/payroll').catch(err => { return { data: [] }; })
+        axios.get('/api/payroll').catch(err => { return { data: [] }; }),
+        axios.get('/api/finance/dashboard').catch(() => ({ data: null }))
       ]);
+
+      if (ledgerRes.data) setLedgerSummary(ledgerRes.data);
 
       console.log('[Finance Dashboard] API Response - Requests:', requestsRes.data?.length || 0);
       console.log('[Finance Dashboard] API Response - Collections:', collectionsRes.data?.length || 0);
@@ -222,7 +226,43 @@ const FinanceDashboard = () => {
       <div className="dashboard-header">
         <h1>Finance Officer Dashboard</h1>
         <p>Financial request management and collections overview</p>
+        <p>
+          <a href="/finance/ledger">Open Finance Ledger →</a>
+        </p>
       </div>
+
+      {ledgerSummary && (
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-icon">📈</div>
+            <div className="stat-content">
+              <h3>Ledger Income</h3>
+              <p className="stat-number">{Number(ledgerSummary.income).toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">📉</div>
+            <div className="stat-content">
+              <h3>Ledger Expenses</h3>
+              <p className="stat-number">{Number(ledgerSummary.expenses).toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">⚖️</div>
+            <div className="stat-content">
+              <h3>Net Position</h3>
+              <p className="stat-number">{Number(ledgerSummary.net).toFixed(2)}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon">⏳</div>
+            <div className="stat-content">
+              <h3>Pending Ledger</h3>
+              <p className="stat-number">{ledgerSummary.pendingCount}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Statistics */}
       <div className="stats-grid">

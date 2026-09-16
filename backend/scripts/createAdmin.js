@@ -14,12 +14,22 @@ async function createAdmin() {
       return;
     }
 
+    // Ensure default church exists
+    let church = await db.getAsync(`SELECT id FROM churches WHERE slug = 'default'`);
+    if (!church) {
+      const cr = await db.runAsync(
+        `INSERT INTO churches (name, short_name, slug, email, currency, status)
+         VALUES ('Default Church', 'Default', 'default', 'admin@church.com', 'USD', 'active')`
+      );
+      church = { id: cr.lastID };
+    }
+
     // Create admin branch
     const hashedPassword = await bcrypt.hash('admin123', 10);
     
     const result = await db.runAsync(
-      'INSERT INTO branches (branchname, branchcode, email, password, address, city, state, country, currency, isadmin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      ['Admin Branch', 'ADMIN001', 'admin@church.com', hashedPassword, 'Headquarters', 'City', 'State', 'Liberia', 'USD', 1]
+      'INSERT INTO branches (branchname, branchcode, email, password, address, city, state, country, currency, isadmin, church_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ['Admin Branch', 'ADMIN001', 'admin@church.com', hashedPassword, 'Headquarters', 'City', 'State', 'Liberia', 'USD', 1, church.id]
     );
 
     // Assign PRESIDENT role

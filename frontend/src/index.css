@@ -1,3 +1,9 @@
+:root {
+  --church-primary: #2c3e50;
+  --church-secondary: #3498db;
+  --church-primary-contrast: #ffffff;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -34,12 +40,13 @@ code {
 }
 
 .btn-primary {
-  background-color: #007bff;
+  background-color: var(--church-secondary, #007bff);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #0056b3;
+  filter: brightness(0.92);
+  background-color: var(--church-secondary, #0056b3);
 }
 
 .btn-danger {

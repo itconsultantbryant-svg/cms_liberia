@@ -19,7 +19,9 @@ router.get('/', authMiddleware, attachRoleInfo, async (req, res) => {
          LEFT JOIN branches b ON pr.branch_id = b.id
          LEFT JOIN branches sub ON pr.submitted_by = sub.id
          LEFT JOIN branches app ON pr.approved_by = app.id
-         ORDER BY pr.created_at DESC`
+         WHERE pr.church_id = ?
+         ORDER BY pr.created_at DESC`,
+        [req.churchId]
       );
     } else {
       runs = await db.allAsync(
@@ -29,9 +31,9 @@ router.get('/', authMiddleware, attachRoleInfo, async (req, res) => {
          LEFT JOIN branches b ON pr.branch_id = b.id
          LEFT JOIN branches sub ON pr.submitted_by = sub.id
          LEFT JOIN branches app ON pr.approved_by = app.id
-         WHERE pr.branch_id = ?
+         WHERE pr.church_id = ? AND pr.branch_id = ?
          ORDER BY pr.created_at DESC`,
-        [branchId]
+        [req.churchId, branchId]
       );
     }
 
@@ -52,8 +54,8 @@ router.get('/:id', authMiddleware, attachRoleInfo, async (req, res) => {
        LEFT JOIN branches b ON pr.branch_id = b.id
        LEFT JOIN branches sub ON pr.submitted_by = sub.id
        LEFT JOIN branches app ON pr.approved_by = app.id
-       WHERE pr.id = ?`,
-      [req.params.id]
+       WHERE pr.id = ? AND pr.church_id = ?`,
+      [req.params.id, req.churchId]
     );
 
     if (!run) {
@@ -85,15 +87,19 @@ router.get('/:id', authMiddleware, attachRoleInfo, async (req, res) => {
 // Create payroll run (Finance Officer only)
 router.post('/', authMiddleware, requireRole('FINANCE_OFFICER'), async (req, res) => {
   try {
-    const { title, period_start, period_end } = req.body;
+    const { title, period_start, period_end, currency } = req.body;
     if (!title || !period_start || !period_end) {
       return res.status(400).json({ error: 'Title, period_start, and period_end are required' });
     }
 
+    const { resolveCurrency } = require('../utils/currencies');
+    const resolved = await resolveCurrency(req.churchId, currency);
+    if (!resolved.ok) return res.status(400).json({ error: resolved.error });
+
     const result = await db.runAsync(
-      `INSERT INTO payroll_runs (branch_id, title, period_start, period_end, status, currency)
-       VALUES (?, ?, ?, ?, 'draft', 'USD')`,
-      [req.user.branchId, title, period_start, period_end]
+      `INSERT INTO payroll_runs (branch_id, church_id, title, period_start, period_end, status, currency)
+       VALUES (?, ?, ?, ?, ?, 'draft', ?)`,
+      [req.user.branchId, req.churchId, title, period_start, period_end, resolved.currency]
     );
 
     res.json({ message: 'Payroll run created', id: result.lastID });

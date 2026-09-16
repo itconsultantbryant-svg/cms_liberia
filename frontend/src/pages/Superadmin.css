@@ -1,0 +1,193 @@
+.superadmin-page {
+  padding: 8px 4px 32px;
+}
+
+.superadmin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.superadmin-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+}
+
+.superadmin-sub {
+  margin: 0;
+  color: #666;
+}
+
+.superadmin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-tile {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-tile span {
+  font-size: 12px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-tile strong {
+  font-size: 1.4rem;
+}
+
+.superadmin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.superadmin-filters input,
+.superadmin-filters select {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  min-width: 180px;
+}
+
+.superadmin-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .superadmin-layout {
+    grid-template-columns: 1.4fr 1fr;
+    align-items: start;
+  }
+}
+
+.superadmin-table-wrap {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.superadmin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.superadmin-table th,
+.superadmin-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.superadmin-table th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+.superadmin-table tr.selected {
+  background: #f0f7ff;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-suspended {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-archived {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.superadmin-detail {
+  padding: 20px;
+}
+
+.superadmin-detail h3 {
+  margin-top: 0;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.branch-list {
+  padding-left: 18px;
+  margin: 8px 0 16px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+}
+
+.superadmin-create {
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.superadmin-create .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.superadmin-foot {
+  margin-top: 24px;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import CurrencySelect from '../components/CurrencySelect';
 
 const StaffManagement = () => {
   const { user } = useAuth();
@@ -27,7 +28,7 @@ const StaffManagement = () => {
     notes: ''
   });
 
-  const canManage = ['FINANCE_OFFICER', 'RESIDENT_PASTOR', 'RESIDENT_PASTOR_HQ'].includes(user?.primaryRole?.role_code);
+  const canManage = ['FINANCE_OFFICER', 'RESIDENT_PASTOR', 'RESIDENT_PASTOR_HQ', 'PRESIDENT', 'MISSION_SECRETARY'].includes(user?.primaryRole?.role_code) || user?.isadmin;
 
   useEffect(() => {
     fetchData();
@@ -194,10 +195,7 @@ const StaffManagement = () => {
               </div>
               <div className="form-group">
                 <label>Currency</label>
-                <select name="currency" value={formData.currency} onChange={handleChange}>
-                  <option value="USD">USD</option>
-                  <option value="LRD">LRD</option>
-                </select>
+                <CurrencySelect name="currency" value={formData.currency} onChange={handleChange} />
               </div>
               <div className="form-group">
                 <label>Address</label>

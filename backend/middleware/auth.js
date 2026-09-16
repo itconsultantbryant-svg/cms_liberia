@@ -1,26 +1,72 @@
 const jwt = require('jsonwebtoken');
+const db = require('../database');
+const { getJwtSecret } = require('../utils/authSecurity');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
-  
+
   if (!token) {
-    console.log('[Auth Middleware] No token provided');
     return res.status(401).json({ error: 'No token, authorization denied' });
   }
-  
+
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.user = decoded;
-    console.log('[Auth Middleware] Token verified for user:', decoded.id, 'Type:', decoded.userType);
+    let secret;
+    try {
+      secret = getJwtSecret();
+    } catch (e) {
+      console.error('[Auth Middleware]', e.message);
+      return res.status(500).json({ error: 'Server auth misconfiguration' });
+    }
+
+    const decoded = jwt.verify(token, secret);
+    const userType = decoded.userType || 'branch';
+    const tokenVersion = decoded.tokenVersion ?? 0;
+
+    if (userType === 'sub_user') {
+      const subUser = await db.getAsync(
+        'SELECT id, is_active, token_version, church_id, branch_id FROM sub_users WHERE id = ?',
+        [decoded.id]
+      );
+      if (!subUser || !subUser.is_active) {
+        return res.status(401).json({ error: 'Account not found or inactive' });
+      }
+      if ((subUser.token_version ?? 0) !== tokenVersion) {
+        return res.status(401).json({ error: 'Session expired. Please log in again.' });
+      }
+      req.user = { ...decoded, userType: 'sub_user', churchId: decoded.churchId || subUser.church_id };
+    } else {
+      const branch = await db.getAsync(
+        'SELECT id, token_version, church_id, isadmin, is_platform_admin FROM branches WHERE id = ?',
+        [decoded.id]
+      );
+      if (!branch) {
+        return res.status(401).json({ error: 'Account not found' });
+      }
+      if ((branch.token_version ?? 0) !== tokenVersion) {
+        return res.status(401).json({ error: 'Session expired. Please log in again.' });
+      }
+      req.user = {
+        ...decoded,
+        userType: 'branch',
+        churchId: decoded.churchId || branch.church_id,
+        isadmin: decoded.supportMode ? false : (decoded.isadmin ?? branch.isadmin),
+        isSuperadmin: !!(branch.is_platform_admin),
+        supportMode: !!decoded.supportMode,
+        supportSessionId: decoded.supportSessionId || null,
+        supportReason: decoded.supportReason || null,
+        homeChurchId: decoded.homeChurchId || branch.church_id
+      };
+    }
+
     next();
   } catch (error) {
-    console.error('[Auth Middleware] Token verification failed:', error.message);
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token has expired' });
     }
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token' });
     }
+    console.error('[Auth Middleware]', error.message);
     return res.status(401).json({ error: 'Token is not valid' });
   }
 };
@@ -33,4 +79,3 @@ const adminMiddleware = (req, res, next) => {
 };
 
 module.exports = { authMiddleware, adminMiddleware };
-

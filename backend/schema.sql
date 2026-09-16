@@ -12,20 +12,76 @@ CREATE TABLE IF NOT EXISTS branches (
   currency TEXT DEFAULT 'USD' CHECK(currency IN ('USD', 'LRD')),
   isadmin INTEGER DEFAULT 0,
   permissions TEXT DEFAULT '[]',
+  church_id INTEGER,
+  failed_login_attempts INTEGER DEFAULT 0,
+  locked_until TEXT,
+  token_version INTEGER DEFAULT 0,
+  password_changed_at TEXT,
+  mfa_enabled INTEGER DEFAULT 0,
+  mfa_secret TEXT,
+  is_platform_admin INTEGER DEFAULT 0,
+  is_headquarters INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active',
+  phone TEXT,
+  pastor_name TEXT,
+  description TEXT,
+  logo_url TEXT,
+  is_login_enabled INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_type TEXT NOT NULL CHECK(account_type IN ('branch', 'sub_user')),
+  account_id INTEGER NOT NULL,
+  church_id INTEGER,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Churches (tenants) — multi-tenant SaaS foundation
+CREATE TABLE IF NOT EXISTS churches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  short_name TEXT,
+  slug TEXT UNIQUE NOT NULL,
+  email TEXT,
+  phone TEXT,
+  country TEXT,
+  city TEXT,
+  address TEXT,
+  website_url TEXT,
+  logo_url TEXT,
+  favicon_url TEXT,
+  primary_color TEXT DEFAULT '#2c3e50',
+  secondary_color TEXT DEFAULT '#3498db',
+  timezone TEXT DEFAULT 'Africa/Monrovia',
+  currency TEXT DEFAULT 'USD',
+  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'suspended', 'archived')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_churches_slug ON churches(slug);
+CREATE INDEX IF NOT EXISTS idx_branches_church ON branches(church_id);
 
 -- Members table
 CREATE TABLE IF NOT EXISTS members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   branch_id INTEGER NOT NULL,
+  church_id INTEGER,
+  membership_id TEXT,
   title TEXT CHECK(title IN ('Mr', 'Mrs', 'Miss', 'Dr (Mrs)', 'Dr', 'Prof', 'Chief', 'Chief (Mrs)', 'Engr', 'Surveyor', 'HRH', 'Elder', 'Oba', 'Olori')),
   firstname TEXT,
+  middlename TEXT,
   lastname TEXT,
   email TEXT UNIQUE NOT NULL,
   dob TEXT,
   phone TEXT,
+  phone_alt TEXT,
   occupation TEXT,
   position TEXT DEFAULT 'member' CHECK(position IN ('worker', 'senior pastor', 'pastor', 'elder', 'usher', 'member', 'chorister', 'technician', 'instrumentalist', 'deacon', 'deaconess', 'evangelist', 'minister', 'protocol')),
   address TEXT,
@@ -41,11 +97,31 @@ CREATE TABLE IF NOT EXISTS members (
   photo TEXT DEFAULT 'profile.png',
   relative TEXT,
   member_status TEXT DEFAULT 'old' CHECK(member_status IN ('old', 'new')),
+  membership_status TEXT DEFAULT 'Active',
+  baptism_status TEXT DEFAULT 'unknown',
+  baptism_date TEXT,
+  ministry TEXT,
+  department TEXT,
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
+  notes TEXT,
   password TEXT,
   isadmin INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS member_documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  member_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  original_name TEXT,
+  doc_type TEXT DEFAULT 'other',
+  uploaded_by INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 );
 
 -- Service types table
@@ -553,4 +629,133 @@ CREATE INDEX IF NOT EXISTS idx_reports_branch ON reports(branch_id);
 CREATE INDEX IF NOT EXISTS idx_reports_department ON reports(department);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
 CREATE INDEX IF NOT EXISTS idx_report_staff_report ON report_staff_performance(report_id);
+
+-- Phase 8: Approval workflow engine
+CREATE TABLE IF NOT EXISTS approval_workflows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER,
+  action_type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  require_approval INTEGER DEFAULT 1,
+  allow_self_approve INTEGER DEFAULT 0,
+  approver_permission TEXT,
+  approver_role_code TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(church_id, action_type)
+);
+
+CREATE TABLE IF NOT EXISTS workflow_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  branch_id INTEGER,
+  action_type TEXT NOT NULL,
+  record_type TEXT,
+  record_id INTEGER,
+  payload_json TEXT,
+  amount REAL,
+  reason TEXT,
+  document_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('draft', 'pending', 'approved', 'rejected', 'cancelled')),
+  requester_id INTEGER NOT NULL,
+  requester_type TEXT NOT NULL DEFAULT 'branch',
+  approver_id INTEGER,
+  approver_type TEXT,
+  approval_comments TEXT,
+  rejection_comments TEXT,
+  requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  actioned_at TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_requests_church_status
+  ON workflow_requests(church_id, status);
+CREATE INDEX IF NOT EXISTS idx_workflow_requests_action
+  ON workflow_requests(action_type, status);
+CREATE INDEX IF NOT EXISTS idx_approval_workflows_action
+  ON approval_workflows(action_type);
+
+-- Phase 10: Households & families
+CREATE TABLE IF NOT EXISTS households (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  branch_id INTEGER,
+  name TEXT NOT NULL,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  country TEXT,
+  phone TEXT,
+  notes TEXT,
+  head_member_id INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS household_members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  household_id INTEGER NOT NULL,
+  member_id INTEGER NOT NULL,
+  relationship TEXT NOT NULL DEFAULT 'other'
+    CHECK(relationship IN ('head', 'spouse', 'child', 'dependent', 'other')),
+  is_primary_contact INTEGER DEFAULT 0,
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  UNIQUE(household_id, member_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_households_church ON households(church_id);
+CREATE INDEX IF NOT EXISTS idx_household_members_household ON household_members(household_id);
+CREATE INDEX IF NOT EXISTS idx_household_members_member ON household_members(member_id);
+
+-- Phase 11: Visitors & follow-up
+CREATE TABLE IF NOT EXISTS visitors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  branch_id INTEGER,
+  firstname TEXT NOT NULL,
+  middlename TEXT,
+  lastname TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  sex TEXT,
+  address TEXT,
+  city TEXT,
+  state TEXT,
+  country TEXT,
+  first_visit_date TEXT,
+  invited_by TEXT,
+  invited_by_member_id INTEGER,
+  service_attended TEXT,
+  prayer_request TEXT,
+  follow_up_status TEXT NOT NULL DEFAULT 'New'
+    CHECK(follow_up_status IN ('New', 'Contacted', 'Follow-up', 'Interested', 'Converted', 'Closed')),
+  assigned_to INTEGER,
+  notes TEXT,
+  converted_member_id INTEGER,
+  converted_at TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS visitor_followups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  church_id INTEGER NOT NULL,
+  visitor_id INTEGER NOT NULL,
+  from_status TEXT,
+  to_status TEXT NOT NULL,
+  notes TEXT,
+  created_by INTEGER,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (visitor_id) REFERENCES visitors(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_visitors_church_status ON visitors(church_id, follow_up_status);
+CREATE INDEX IF NOT EXISTS idx_visitor_followups_visitor ON visitor_followups(visitor_id);
 

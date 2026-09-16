@@ -13,11 +13,24 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: LOG_LEVEL
+        value: info
       - key: JWT_SECRET
         generateValue: true
-      # Optional: use a persistent disk for SQLite (attach in Render dashboard)
+      # Set these in the Render dashboard to your https service URL:
+      # - key: CORS_ORIGIN
+      #   value: https://YOUR-SERVICE.onrender.com
+      # - key: APP_URL
+      #   value: https://YOUR-SERVICE.onrender.com
+      # Attach a Persistent Disk, then set:
       # - key: DATABASE_PATH
       #   value: /opt/render/project/data/database.sqlite
+      # - key: UPLOADS_PATH
+      #   value: /opt/render/project/data/uploads
+      # - key: BACKUP_PATH
+      #   value: /opt/render/project/data/backups
 
-    # Health check so Render knows the app is up
+    # Liveness probe
     healthCheckPath: /api/health

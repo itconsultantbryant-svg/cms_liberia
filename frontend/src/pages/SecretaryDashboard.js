@@ -40,7 +40,9 @@ const SecretaryDashboard = () => {
       ]);
 
       setStats({
-        membersAdded: membersRes.data.length,
+        membersAdded: Array.isArray(membersRes.data)
+          ? membersRes.data.length
+          : (membersRes.data.members || membersRes.data.data || []).length,
         attendanceRecorded: attendanceRes.data.length,
         collectionsRecorded: collectionsRes.data.length,
         reportsSubmitted: reportsRes.data.filter(r => r.submitted_by === user.id).length

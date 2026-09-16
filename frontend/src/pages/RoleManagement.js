@@ -5,167 +5,233 @@ import { useAuth } from '../context/AuthContext';
 const RoleManagement = () => {
   const { user } = useAuth();
   const [roles, setRoles] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [hierarchy, setHierarchy] = useState([]);
+  const [permissions, setPermissions] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [selectedPerms, setSelectedPerms] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [customForm, setCustomForm] = useState({
+    roleName: '',
+    description: '',
+    permissions: []
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const canManage = user?.isadmin || (user?.permissionKeys || []).includes('roles.manage');
 
   const fetchData = async () => {
     try {
-      const [rolesRes, deptRes, hierarchyRes] = await Promise.all([
+      const [rolesRes, permsRes] = await Promise.all([
         axios.get('/api/roles'),
-        axios.get('/api/roles/departments'),
-        axios.get('/api/roles/hierarchy'),
+        axios.get('/api/roles/permissions')
       ]);
-
-      setRoles(rolesRes.data);
-      setDepartments(deptRes.data);
-      setHierarchy(hierarchyRes.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : []);
+      setPermissions(permsRes.data.permissions || []);
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRoleSelect = async (roleCode) => {
-    try {
-      const [hierarchyRes, usersRes] = await Promise.all([
-        axios.get(`/api/roles/hierarchy?role_code=${roleCode}`),
-        axios.get(`/api/roles/role/${roleCode}/users`),
-      ]);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-      setSelectedRole({ roleCode, ...hierarchyRes.data });
-      setUsers(usersRes.data);
-    } catch (error) {
-      console.error('Error fetching role details:', error);
+  const handleRoleSelect = async (role) => {
+    setSelectedRole(role);
+    setSelectedPerms(role.permissions || []);
+    setMessage('');
+    try {
+      const usersRes = await axios.get(`/api/roles/role/${role.role_code}/users`);
+      setUsers(usersRes.data || []);
+    } catch (_) {
+      setUsers([]);
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  const togglePerm = (key) => {
+    setSelectedPerms((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    );
+  };
+
+  const savePerms = async () => {
+    if (!selectedRole?.is_custom) return;
+    setError('');
+    try {
+      await axios.put(`/api/roles/${selectedRole.id}/permissions`, {
+        permissions: selectedPerms
+      });
+      setMessage('Permissions saved');
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    }
+  };
+
+  const createCustom = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    try {
+      await axios.post('/api/roles/custom', customForm);
+      setMessage('Custom role created');
+      setCustomForm({ roleName: '', description: '', permissions: [] });
+      await fetchData();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message);
+    }
+  };
+
+  const toggleCustomPerm = (key) => {
+    setCustomForm((f) => ({
+      ...f,
+      permissions: f.permissions.includes(key)
+        ? f.permissions.filter((p) => p !== key)
+        : [...f.permissions, key]
+    }));
+  };
+
+  if (loading) return <div>Loading...</div>;
+
+  const byScope = roles.reduce((acc, role) => {
+    const scope = role.scope || 'church';
+    if (!acc[scope]) acc[scope] = [];
+    acc[scope].push(role);
+    return acc;
+  }, {});
 
   return (
     <div>
-      <h2>Role Management</h2>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
-        <div className="card">
-          <h3>Roles by Level</h3>
-          <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
-            {Object.entries(roles.reduce((acc, role) => {
-              if (!acc[role.level]) acc[role.level] = [];
-              acc[role.level].push(role);
-              return acc;
-            }, {})).map(([level, levelRoles]) => (
-              <div key={level} style={{ marginBottom: '20px' }}>
-                <h4>Level {level}</h4>
-                {levelRoles.map(role => (
-                  <div
-                    key={role.id}
-                    style={{
-                      padding: '10px',
-                      margin: '5px 0',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      backgroundColor: selectedRole?.role?.role_code === role.role_code ? '#e3f2fd' : 'white'
-                    }}
-                    onClick={() => handleRoleSelect(role.role_code)}
-                  >
-                    <strong>{role.role_name}</strong>
-                    <div style={{ fontSize: '0.9rem', color: '#666' }}>
-                      {role.office_type} - {role.department || 'N/A'}
-                    </div>
+      <h2>Role & Permission Management</h2>
+      <p style={{ color: '#666' }}>
+        Platform, church, and branch role templates plus church-specific custom roles. Authorization uses
+        granular permission keys checked on the server.
+      </p>
+
+      {error && <div className="error-message">{error}</div>}
+      {message && <div className="success-message">{message}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 20 }}>
+        <div className="card" style={{ padding: 16 }}>
+          <h3>Roles</h3>
+          {Object.entries(byScope).map(([scope, list]) => (
+            <div key={scope} style={{ marginBottom: 16 }}>
+              <h4 style={{ textTransform: 'capitalize' }}>{scope} roles</h4>
+              {list.map((role) => (
+                <div
+                  key={role.id}
+                  onClick={() => handleRoleSelect(role)}
+                  style={{
+                    padding: 10,
+                    margin: '5px 0',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    background:
+                      selectedRole?.id === role.id ? 'var(--church-secondary, #e3f2fd)' : '#fff'
+                  }}
+                >
+                  <strong>{role.role_name}</strong>
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    {role.role_code}
+                    {role.is_custom ? ' · custom' : ' · system'}
+                    {' · '}
+                    {(role.permissions || []).length} permissions
                   </div>
-                ))}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
 
-        {selectedRole && (
-          <div className="card">
-            <h3>Role Details: {selectedRole.role?.role_name}</h3>
-            <div style={{ marginBottom: '20px' }}>
-              <p><strong>Level:</strong> {selectedRole.role?.level}</p>
-              <p><strong>Office Type:</strong> {selectedRole.role?.office_type}</p>
-              <p><strong>Department:</strong> {selectedRole.role?.department || 'N/A'}</p>
-              <p><strong>Description:</strong> {selectedRole.role?.description}</p>
-            </div>
-
-            {selectedRole.reportsTo && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4>Reports To:</h4>
-                {selectedRole.reportsTo.map(r => (
-                  <div key={r.id} style={{ padding: '5px', backgroundColor: '#f0f0f0', margin: '5px 0', borderRadius: '4px' }}>
-                    {r.role_name}
-                  </div>
+        <div className="card" style={{ padding: 16 }}>
+          {selectedRole ? (
+            <>
+              <h3>{selectedRole.role_name}</h3>
+              <p style={{ fontSize: 13, color: '#666' }}>{selectedRole.description}</p>
+              <h4>Permissions</h4>
+              <div style={{ maxHeight: 280, overflow: 'auto', marginBottom: 12 }}>
+                {permissions.map((p) => (
+                  <label
+                    key={p.perm_key}
+                    style={{ display: 'flex', gap: 8, fontSize: 13, marginBottom: 4 }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPerms.includes(p.perm_key)}
+                      disabled={!selectedRole.is_custom || !canManage}
+                      onChange={() => togglePerm(p.perm_key)}
+                    />
+                    <span>
+                      <code>{p.perm_key}</code> — {p.description}
+                    </span>
+                  </label>
                 ))}
               </div>
-            )}
-
-            {selectedRole.reportsFrom && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4>Has Authority Over:</h4>
-                {selectedRole.reportsFrom.map(r => (
-                  <div key={r.id} style={{ padding: '5px', backgroundColor: '#e8f5e9', margin: '5px 0', borderRadius: '4px' }}>
-                    {r.role_name}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div>
-              <h4>Users with this Role ({users.length})</h4>
-              {users.length === 0 ? (
-                <p>No users assigned to this role</p>
-              ) : (
-                <ul>
-                  {users.map(u => (
-                    <li key={u.id}>{u.branchname} - {u.email}</li>
-                  ))}
-                </ul>
+              {selectedRole.is_custom && canManage && (
+                <button type="button" className="btn btn-primary" onClick={savePerms}>
+                  Save permissions
+                </button>
               )}
-            </div>
-          </div>
-        )}
+              <h4 style={{ marginTop: 16 }}>Assigned users (this church)</h4>
+              <ul>
+                {users.map((u) => (
+                  <li key={u.id}>
+                    {u.branchname} ({u.email})
+                  </li>
+                ))}
+                {!users.length && <li>None</li>}
+              </ul>
+            </>
+          ) : (
+            <p>Select a role to view permissions</p>
+          )}
+        </div>
       </div>
 
-      <div className="card" style={{ marginTop: '20px' }}>
-        <h3>Departments</h3>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Department Code</th>
-              <th>Department Name</th>
-              <th>Office Type</th>
-              <th>Location</th>
-              <th>Users</th>
-            </tr>
-          </thead>
-          <tbody>
-            {departments.map(dept => (
-              <tr key={dept.id}>
-                <td>{dept.department_code}</td>
-                <td>{dept.department_name}</td>
-                <td>{dept.office_type}</td>
-                <td>{dept.location}</td>
-                <td>{dept.user_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {canManage && (
+        <form className="card" style={{ padding: 16, marginTop: 20 }} onSubmit={createCustom}>
+          <h3>Create custom church role</h3>
+          <div className="form-group">
+            <label>Role name</label>
+            <input
+              value={customForm.roleName}
+              onChange={(e) => setCustomForm({ ...customForm, roleName: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              value={customForm.description}
+              onChange={(e) => setCustomForm({ ...customForm, description: e.target.value })}
+            />
+          </div>
+          <h4>Permissions</h4>
+          <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 12 }}>
+            {permissions
+              .filter((p) => !p.perm_key.startsWith('platform.'))
+              .map((p) => (
+                <label key={p.perm_key} style={{ display: 'flex', gap: 8, fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={customForm.permissions.includes(p.perm_key)}
+                    onChange={() => toggleCustomPerm(p.perm_key)}
+                  />
+                  <code>{p.perm_key}</code>
+                </label>
+              ))}
+          </div>
+          <button type="submit" className="btn btn-primary">
+            Create role
+          </button>
+        </form>
+      )}
     </div>
   );
 };
 
 export default RoleManagement;
-

@@ -1,0 +1,102 @@
+.branding-page {
+  max-width: 800px;
+}
+
+.branding-page h1 {
+  margin: 0 0 6px;
+}
+
+.branding-sub {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.branding-preview {
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.branding-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  padding: 14px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.branding-preview-logo {
+  height: 36px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.branding-preview-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.branding-form,
+.branding-uploads {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.branding-form .form-row,
+.branding-uploads .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.color-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-row input[type="color"] {
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.branding-thumb {
+  display: block;
+  max-height: 64px;
+  margin-bottom: 8px;
+  object-fit: contain;
+}
+
+.branding-thumb.small {
+  max-height: 32px;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}

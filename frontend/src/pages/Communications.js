@@ -13,6 +13,19 @@ const Communications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [channelSettings, setChannelSettings] = useState(null);
+  const [reminders, setReminders] = useState([]);
+  const [ministries, setMinistries] = useState([]);
+  const [annForm, setAnnForm] = useState({
+    title: '',
+    body: '',
+    audienceType: 'branch',
+    audienceRefId: '',
+    channels: { in_app: true, email: false, sms: false, whatsapp: false }
+  });
+  const [outreachMsg, setOutreachMsg] = useState('');
+  const [outreachErr, setOutreachErr] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -21,6 +34,12 @@ const Communications = () => {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (['announcements', 'channels', 'reminders'].includes(activeTab)) {
+      loadOutreach(activeTab);
+    }
+  }, [activeTab]);
 
   const fetchData = async () => {
     try {
@@ -37,6 +56,28 @@ const Communications = () => {
       console.error('Error fetching communications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadOutreach = async (tab) => {
+    setOutreachErr('');
+    try {
+      if (tab === 'announcements') {
+        const [a, g] = await Promise.all([
+          axios.get('/api/outreach/announcements'),
+          axios.get('/api/groups')
+        ]);
+        setAnnouncements(a.data.announcements || []);
+        setMinistries(g.data.ministries || g.data.groups || []);
+      } else if (tab === 'channels') {
+        const c = await axios.get('/api/outreach/channels');
+        setChannelSettings(c.data);
+      } else if (tab === 'reminders') {
+        const r = await axios.get('/api/outreach/reminders?status=ready');
+        setReminders(r.data.reminders || []);
+      }
+    } catch (err) {
+      setOutreachErr(err.response?.data?.error || err.message);
     }
   };
 
@@ -128,6 +169,72 @@ const Communications = () => {
     return new Date(dateString).toLocaleString();
   };
 
+  const createAnnouncement = async (e) => {
+    e.preventDefault();
+    setOutreachErr('');
+    try {
+      const res = await axios.post('/api/outreach/announcements', {
+        ...annForm,
+        audienceRefId: annForm.audienceRefId || undefined
+      });
+      if (window.confirm('Send now?')) {
+        await axios.post(`/api/outreach/announcements/${res.data.id}/send`);
+        setOutreachMsg('Announcement sent');
+      } else {
+        setOutreachMsg('Announcement saved as draft');
+      }
+      setAnnForm({
+        title: '',
+        body: '',
+        audienceType: 'branch',
+        audienceRefId: '',
+        channels: { in_app: true, email: false, sms: false, whatsapp: false }
+      });
+      loadOutreach('announcements');
+    } catch (err) {
+      setOutreachErr(err.response?.data?.error || 'Failed');
+    }
+  };
+
+  const saveChannels = async () => {
+    try {
+      const s = channelSettings?.settings || {};
+      await axios.patch('/api/outreach/channels', {
+        emailEnabled: !!s.email_enabled,
+        emailProviderReady: !!s.email_provider_ready,
+        emailFrom: s.email_from || '',
+        smsEnabled: !!s.sms_enabled,
+        smsProviderReady: !!s.sms_provider_ready,
+        whatsappEnabled: !!s.whatsapp_enabled,
+        whatsappProviderReady: !!s.whatsapp_provider_ready
+      });
+      setOutreachMsg('Channel settings saved');
+      loadOutreach('channels');
+    } catch (err) {
+      setOutreachErr(err.response?.data?.error || 'Save failed');
+    }
+  };
+
+  const scanReminders = async () => {
+    try {
+      const res = await axios.post('/api/outreach/reminders/scan');
+      setOutreachMsg(`Scan complete — ${res.data.created} new reminder(s)`);
+      loadOutreach('reminders');
+    } catch (err) {
+      setOutreachErr(err.response?.data?.error || 'Scan failed');
+    }
+  };
+
+  const dispatchReminder = async (id) => {
+    try {
+      await axios.post(`/api/outreach/reminders/${id}/dispatch`);
+      setOutreachMsg('Reminder dispatched');
+      loadOutreach('reminders');
+    } catch (err) {
+      setOutreachErr(err.response?.data?.error || 'Dispatch failed');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading communications...</div>;
   }
@@ -135,27 +242,246 @@ const Communications = () => {
   return (
     <div className="communications-container">
       <div className="communications-header">
-        <h1>Inter-Office Communications</h1>
-        <button className="btn-compose" onClick={() => setShowCompose(true)}>
-          ✉️ Compose New Message
-        </button>
+        <h1>Communications</h1>
+        {(activeTab === 'inbox' || activeTab === 'sent') && (
+          <button className="btn-compose" onClick={() => setShowCompose(true)}>
+            Compose New Message
+          </button>
+        )}
       </div>
 
+      {outreachMsg && <div className="success-message">{outreachMsg}</div>}
+      {outreachErr && <div className="error-message">{outreachErr}</div>}
+
       <div className="communications-tabs">
-        <button 
+        <button
           className={`tab ${activeTab === 'inbox' ? 'active' : ''}`}
           onClick={() => setActiveTab('inbox')}
         >
           Inbox {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}
         </button>
-        <button 
+        <button
           className={`tab ${activeTab === 'sent' ? 'active' : ''}`}
           onClick={() => setActiveTab('sent')}
         >
           Sent
         </button>
+        <button
+          className={`tab ${activeTab === 'announcements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('announcements')}
+        >
+          Announcements
+        </button>
+        <button
+          className={`tab ${activeTab === 'channels' ? 'active' : ''}`}
+          onClick={() => setActiveTab('channels')}
+        >
+          Channels
+        </button>
+        <button
+          className={`tab ${activeTab === 'reminders' ? 'active' : ''}`}
+          onClick={() => setActiveTab('reminders')}
+        >
+          Reminders
+        </button>
       </div>
 
+      {activeTab === 'announcements' && (
+        <div style={{ padding: 16 }}>
+          <form className="card" onSubmit={createAnnouncement} style={{ padding: 16, marginBottom: 16 }}>
+            <h2>New announcement</h2>
+            <div className="form-group">
+              <label>Title</label>
+              <input
+                required
+                value={annForm.title}
+                onChange={(e) => setAnnForm({ ...annForm, title: e.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label>Body</label>
+              <textarea
+                required
+                rows={3}
+                value={annForm.body}
+                onChange={(e) => setAnnForm({ ...annForm, body: e.target.value })}
+              />
+            </div>
+            <div className="form-group">
+              <label>Audience</label>
+              <select
+                value={annForm.audienceType}
+                onChange={(e) => setAnnForm({ ...annForm, audienceType: e.target.value })}
+              >
+                <option value="church">Entire church</option>
+                <option value="branch">This branch</option>
+                <option value="ministry">Ministry / group</option>
+                <option value="staff">Staff</option>
+                <option value="department">Department</option>
+              </select>
+            </div>
+            {annForm.audienceType === 'ministry' && (
+              <div className="form-group">
+                <label>Ministry</label>
+                <select
+                  value={annForm.audienceRefId}
+                  onChange={(e) => setAnnForm({ ...annForm, audienceRefId: e.target.value })}
+                  required
+                >
+                  <option value="">Select…</option>
+                  {ministries.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="form-group" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {['in_app', 'email', 'sms', 'whatsapp'].map((ch) => (
+                <label key={ch}>
+                  <input
+                    type="checkbox"
+                    checked={!!annForm.channels[ch]}
+                    onChange={(e) =>
+                      setAnnForm({
+                        ...annForm,
+                        channels: { ...annForm.channels, [ch]: e.target.checked }
+                      })
+                    }
+                  />{' '}
+                  {ch}
+                </label>
+              ))}
+            </div>
+            <button type="submit" className="btn btn-primary">
+              Save &amp; send
+            </button>
+          </form>
+          <div className="card" style={{ padding: 16 }}>
+            <h2>Recent announcements</h2>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Audience</th>
+                  <th>Status</th>
+                  <th>Recipients</th>
+                </tr>
+              </thead>
+              <tbody>
+                {announcements.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.title}</td>
+                    <td>{a.audience_type}</td>
+                    <td>{a.status}</td>
+                    <td>{a.recipient_count || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'channels' && channelSettings && (
+        <div className="card" style={{ padding: 16, margin: 16 }}>
+          <h2>Channel readiness</h2>
+          <p>Mark providers ready when credentials are configured (delivery in Phase 24).</p>
+          {[
+            ['email_enabled', 'email_provider_ready', 'Email'],
+            ['sms_enabled', 'sms_provider_ready', 'SMS'],
+            ['whatsapp_enabled', 'whatsapp_provider_ready', 'WhatsApp']
+          ].map(([en, ready, label]) => (
+            <div key={label} style={{ marginBottom: 12 }}>
+              <strong>{label}</strong>{' '}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!channelSettings.settings[en]}
+                  onChange={(e) =>
+                    setChannelSettings({
+                      ...channelSettings,
+                      settings: { ...channelSettings.settings, [en]: e.target.checked ? 1 : 0 }
+                    })
+                  }
+                />{' '}
+                Enabled
+              </label>{' '}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={!!channelSettings.settings[ready]}
+                  onChange={(e) =>
+                    setChannelSettings({
+                      ...channelSettings,
+                      settings: { ...channelSettings.settings, [ready]: e.target.checked ? 1 : 0 }
+                    })
+                  }
+                />{' '}
+                Provider ready
+              </label>
+            </div>
+          ))}
+          <div className="form-group">
+            <label>Email from</label>
+            <input
+              value={channelSettings.settings.email_from || ''}
+              onChange={(e) =>
+                setChannelSettings({
+                  ...channelSettings,
+                  settings: { ...channelSettings.settings, email_from: e.target.value }
+                })
+              }
+            />
+          </div>
+          <button type="button" className="btn btn-primary" onClick={saveChannels}>
+            Save channels
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'reminders' && (
+        <div className="card" style={{ padding: 16, margin: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>Reminder queue</h2>
+            <button type="button" className="btn btn-secondary" onClick={scanReminders}>
+              Scan events / birthdays / follow-ups
+            </button>
+          </div>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Due</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {reminders.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.reminder_type}</td>
+                  <td>{r.title}</td>
+                  <td>{r.due_at || '—'}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ padding: '4px 8px', fontSize: 13 }}
+                      onClick={() => dispatchReminder(r.id)}
+                    >
+                      Dispatch
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {(activeTab === 'inbox' || activeTab === 'sent') && (
       <div className="communications-content">
         <div className="communications-list">
           {(activeTab === 'inbox' ? inbox : sent).length === 0 ? (
@@ -209,6 +535,7 @@ const Communications = () => {
           />
         )}
       </div>
+      )}
 
       {showCompose && (
         <ComposeModal

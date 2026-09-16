@@ -25,8 +25,12 @@ async function runMigrations() {
         await db.runAsync(statement);
         console.log('Ran:', statement.substring(0, 60) + '...');
       } catch (err) {
-        if (err.message && (err.message.includes('duplicate column name') || err.message.includes('already exists'))) {
-          console.warn('Skipped (already applied):', err.message);
+        if (err.message && (
+          err.message.includes('duplicate column name') ||
+          err.message.includes('already exists') ||
+          err.message.includes('no such table')
+        )) {
+          console.warn('Skipped (already applied or missing table):', err.message);
         } else {
           console.error('Migration error:', err.message);
           process.exit(1);

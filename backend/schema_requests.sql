@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS requests (
   title TEXT NOT NULL,
   description TEXT NOT NULL,
   amount DECIMAL(15, 2), -- For financial requests
-  currency TEXT DEFAULT 'USD' CHECK(currency IN ('USD', 'LRD')),
+  currency TEXT DEFAULT 'USD',
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved_by_mission_secretary', 'rejected_by_mission_secretary', 'approved_by_finance', 'rejected_by_finance', 'approved_by_vice_president', 'rejected_by_vice_president', 'approved', 'rejected')),
   priority TEXT DEFAULT 'normal' CHECK(priority IN ('low', 'normal', 'high', 'urgent')),
   department_id INTEGER, -- Related department if applicable
