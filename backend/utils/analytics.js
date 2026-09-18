@@ -45,13 +45,14 @@ async function membershipReport(churchId, { from, to, branchId }) {
     `SELECT COALESCE(NULLIF(membership_status, ''), 'Unknown') as label, COUNT(*) as count
      FROM members ${where}
      GROUP BY COALESCE(NULLIF(membership_status, ''), 'Unknown')
-     ORDER BY count DESC`,
+     ORDER BY COUNT(*) DESC`,
     params
   );
   const byGender = await db.allAsync(
     `SELECT COALESCE(NULLIF(LOWER(sex), ''), 'unknown') as label, COUNT(*) as count
      FROM members ${where}
-     GROUP BY COALESCE(NULLIF(LOWER(sex), ''), 'unknown')`,
+     GROUP BY COALESCE(NULLIF(LOWER(sex), ''), 'unknown')
+     ORDER BY COUNT(*) DESC`,
     params
   );
   const byBranch = await db.allAsync(
@@ -59,8 +60,8 @@ async function membershipReport(churchId, { from, to, branchId }) {
      FROM members m
      LEFT JOIN branches b ON b.id = m.branch_id
      WHERE m.church_id = ? ${branchId ? 'AND m.branch_id = ?' : ''}
-     GROUP BY m.branch_id
-     ORDER BY count DESC`,
+     GROUP BY COALESCE(b.branchname, 'Unassigned')
+     ORDER BY COUNT(m.id) DESC`,
     branchId ? [churchId, branchId] : [churchId]
   );
 

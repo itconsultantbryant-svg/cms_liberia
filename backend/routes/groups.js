@@ -80,10 +80,9 @@ router.get('/', async (req, res) => {
   try {
     let sql = `
       SELECT g.*,
-        COUNT(gm.id) as member_count,
+        (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) as member_count,
         lm.firstname as leader_firstname, lm.lastname as leader_lastname
       FROM groups g
-      LEFT JOIN group_members gm ON gm.group_id = g.id
       LEFT JOIN members lm ON lm.id = g.leader_member_id
       WHERE (g.church_id = ? OR g.branch_id IN (SELECT id FROM branches WHERE church_id = ?))`;
     const params = [req.churchId, req.churchId];
@@ -99,7 +98,7 @@ router.get('/', async (req, res) => {
     if (req.query.active !== '0') {
       sql += ' AND (g.is_active = 1 OR g.is_active IS NULL)';
     }
-    sql += ' GROUP BY g.id ORDER BY g.name';
+    sql += ' ORDER BY g.name';
 
     const groups = await db.allAsync(sql, params);
     res.json({ groups, ministries: groups });

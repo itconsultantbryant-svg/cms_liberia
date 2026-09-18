@@ -129,11 +129,9 @@ router.get('/inbox', authMiddleware, attachRoleInfo, async (req, res) => {
     
     const communications = await db.allAsync(
       `SELECT c.*, 
-       COUNT(cr.id) as reply_count
+       (SELECT COUNT(*) FROM communication_replies cr WHERE cr.communication_id = c.id) as reply_count
        FROM communications c
-       LEFT JOIN communication_replies cr ON c.id = cr.communication_id
        WHERE c.recipient_id = ? AND c.recipient_type = ?
-       GROUP BY c.id
        ORDER BY c.created_at DESC`,
       [userId, userType]
     );
@@ -166,11 +164,9 @@ router.get('/sent', authMiddleware, attachRoleInfo, async (req, res) => {
     
     const communications = await db.allAsync(
       `SELECT c.*, 
-       COUNT(cr.id) as reply_count
+       (SELECT COUNT(*) FROM communication_replies cr WHERE cr.communication_id = c.id) as reply_count
        FROM communications c
-       LEFT JOIN communication_replies cr ON c.id = cr.communication_id
        WHERE c.sender_id = ? AND c.sender_type = ?
-       GROUP BY c.id
        ORDER BY c.created_at DESC`,
       [userId, userType]
     );
@@ -204,14 +200,12 @@ router.get('/history/:otherUserId', authMiddleware, attachRoleInfo, async (req, 
     
     const communications = await db.allAsync(
       `SELECT c.*, 
-       COUNT(cr.id) as reply_count
+       (SELECT COUNT(*) FROM communication_replies cr WHERE cr.communication_id = c.id) as reply_count
        FROM communications c
-       LEFT JOIN communication_replies cr ON c.id = cr.communication_id
        WHERE (
          (c.sender_id = ? AND c.sender_type = ? AND c.recipient_id = ?) OR
          (c.sender_id = ? AND c.recipient_id = ? AND c.recipient_type = ?)
        )
-       GROUP BY c.id
        ORDER BY c.created_at ASC`,
       [userId, userType, otherUserId, otherUserId, userId, userType]
     );

@@ -41,6 +41,11 @@ function translateSql(sql) {
   s = s.replace(/\bIFNULL\s*\(/gi, 'COALESCE(');
   s = s.replace(/date\s*\(\s*'now'\s*\)/gi, 'CURRENT_DATE');
   s = s.replace(/datetime\s*\(\s*'now'\s*\)/gi, 'CURRENT_TIMESTAMP');
+  // date(column_or_expr) → cast to date (skip already-handled date('now'))
+  s = s.replace(/\bdate\s*\(\s*(?!CURRENT_DATE)([^)]+)\s*\)/gi, '(($1)::timestamp)::date');
+  s = s.replace(/\bdatetime\s*\(\s*(?!CURRENT_TIMESTAMP)([^)]+)\s*\)/gi, '(($1)::timestamp)');
+  // substr for month keys used in finance reports
+  s = s.replace(/\bsubstr\s*\(\s*([^,]+)\s*,\s*1\s*,\s*7\s*\)/gi, "to_char(($1)::timestamp, 'YYYY-MM')");
 
   s = s.replace(/strftime\s*\(\s*'%Y-%m'\s*,\s*([^)]+)\)/gi, "to_char(($1)::timestamp, 'YYYY-MM')");
   s = s.replace(/strftime\s*\(\s*'%Y'\s*,\s*([^)]+)\)/gi, "to_char(($1)::timestamp, 'YYYY')");

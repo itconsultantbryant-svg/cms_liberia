@@ -10,11 +10,10 @@ router.get('/', authMiddleware, attachRoleInfo, async (req, res) => {
     const departments = await db.allAsync(
       `SELECT d.*, 
        pd.department_name as parent_department_name,
-       COUNT(DISTINCT ur.user_id) as assigned_users_count
+       (SELECT COUNT(DISTINCT ur.user_id) FROM user_roles ur
+         WHERE ur.department_id = d.id AND ur.is_active = 1) as assigned_users_count
        FROM departments d
        LEFT JOIN departments pd ON d.parent_department_id = pd.id
-       LEFT JOIN user_roles ur ON d.id = ur.department_id AND ur.is_active = 1
-       GROUP BY d.id
        ORDER BY d.department_name ASC`
     );
 

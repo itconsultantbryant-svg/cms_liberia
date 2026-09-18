@@ -30,7 +30,7 @@ router.get('/overview', requirePermission('reports.view'), async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Analytics overview error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: error.message || 'Server error' });
   }
 });
 
@@ -40,7 +40,7 @@ router.get('/membership', requirePermission('reports.view', 'members.view'), asy
     res.json(data);
   } catch (error) {
     console.error('Membership analytics error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: error.message || 'Server error' });
   }
 });
 
