@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import './Members.css';
 
 const RoleManagement = () => {
   const { user } = useAuth();
@@ -94,7 +95,7 @@ const RoleManagement = () => {
     }));
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="members-page muted">Loading…</div>;
 
   const byScope = roles.reduce((acc, role) => {
     const scope = role.scope || 'church';
@@ -104,61 +105,54 @@ const RoleManagement = () => {
   }, {});
 
   return (
-    <div>
-      <h2>Role & Permission Management</h2>
-      <p style={{ color: '#666' }}>
-        Platform, church, and branch role templates plus church-specific custom roles. Authorization uses
-        granular permission keys checked on the server.
-      </p>
+    <div className="members-page">
+      <div className="members-header">
+        <div>
+          <h1>Role &amp; Permission Management</h1>
+          <p className="members-sub">
+            Platform, church, and branch role templates plus church-specific custom roles.
+          </p>
+        </div>
+      </div>
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 20 }}>
-        <div className="card" style={{ padding: 16 }}>
+      <div className="role-layout">
+        <div className="card">
           <h3>Roles</h3>
           {Object.entries(byScope).map(([scope, list]) => (
             <div key={scope} style={{ marginBottom: 16 }}>
-              <h4 style={{ textTransform: 'capitalize' }}>{scope} roles</h4>
+              <h4 style={{ textTransform: 'capitalize', margin: '0 0 8px' }}>{scope} roles</h4>
               {list.map((role) => (
-                <div
+                <button
+                  type="button"
                   key={role.id}
                   onClick={() => handleRoleSelect(role)}
-                  style={{
-                    padding: 10,
-                    margin: '5px 0',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    background:
-                      selectedRole?.id === role.id ? 'var(--church-secondary, #e3f2fd)' : '#fff'
-                  }}
+                  className={`role-list-item${selectedRole?.id === role.id ? ' is-selected' : ''}`}
                 >
                   <strong>{role.role_name}</strong>
-                  <div style={{ fontSize: 12, color: '#666' }}>
+                  <span className="muted" style={{ display: 'block', fontSize: 12 }}>
                     {role.role_code}
                     {role.is_custom ? ' · custom' : ' · system'}
                     {' · '}
                     {(role.permissions || []).length} permissions
-                  </div>
-                </div>
+                  </span>
+                </button>
               ))}
             </div>
           ))}
         </div>
 
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card">
           {selectedRole ? (
             <>
               <h3>{selectedRole.role_name}</h3>
-              <p style={{ fontSize: 13, color: '#666' }}>{selectedRole.description}</p>
+              <p className="muted">{selectedRole.description}</p>
               <h4>Permissions</h4>
-              <div style={{ maxHeight: 280, overflow: 'auto', marginBottom: 12 }}>
+              <div className="perm-scroll">
                 {permissions.map((p) => (
-                  <label
-                    key={p.perm_key}
-                    style={{ display: 'flex', gap: 8, fontSize: 13, marginBottom: 4 }}
-                  >
+                  <label key={p.perm_key} className="perm-row">
                     <input
                       type="checkbox"
                       checked={selectedPerms.includes(p.perm_key)}
@@ -183,39 +177,43 @@ const RoleManagement = () => {
                     {u.branchname} ({u.email})
                   </li>
                 ))}
-                {!users.length && <li>None</li>}
+                {!users.length && <li className="muted">None</li>}
               </ul>
             </>
           ) : (
-            <p>Select a role to view permissions</p>
+            <p className="muted">Select a role to view permissions</p>
           )}
         </div>
       </div>
 
       {canManage && (
-        <form className="card" style={{ padding: 16, marginTop: 20 }} onSubmit={createCustom}>
+        <form className="card" onSubmit={createCustom}>
           <h3>Create custom church role</h3>
-          <div className="form-group">
-            <label>Role name</label>
-            <input
-              value={customForm.roleName}
-              onChange={(e) => setCustomForm({ ...customForm, roleName: e.target.value })}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Description</label>
-            <input
-              value={customForm.description}
-              onChange={(e) => setCustomForm({ ...customForm, description: e.target.value })}
-            />
+          <div className="member-form-grid">
+            <div className="form-group">
+              <label htmlFor="role-name">Role name</label>
+              <input
+                id="role-name"
+                value={customForm.roleName}
+                onChange={(e) => setCustomForm({ ...customForm, roleName: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="role-desc">Description</label>
+              <input
+                id="role-desc"
+                value={customForm.description}
+                onChange={(e) => setCustomForm({ ...customForm, description: e.target.value })}
+              />
+            </div>
           </div>
           <h4>Permissions</h4>
-          <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 12 }}>
+          <div className="perm-scroll">
             {permissions
               .filter((p) => !p.perm_key.startsWith('platform.'))
               .map((p) => (
-                <label key={p.perm_key} style={{ display: 'flex', gap: 8, fontSize: 13 }}>
+                <label key={p.perm_key} className="perm-row">
                   <input
                     type="checkbox"
                     checked={customForm.permissions.includes(p.perm_key)}

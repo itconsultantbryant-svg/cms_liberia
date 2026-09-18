@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import CurrencySelect from '../components/CurrencySelect';
+import './Members.css';
 
 const StaffManagement = () => {
   const { user } = useAuth();
@@ -136,91 +137,96 @@ const StaffManagement = () => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', minimumFractionDigits: 2 }).format(amount);
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="members-page muted">Loading…</div>;
 
   if (!canManage) {
-    return <div className="card"><p>You do not have permission to manage staff.</p></div>;
+    return <div className="members-page"><div className="card"><p>You do not have permission to manage staff.</p></div></div>;
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Staff Management</h2>
-        <button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          Add Staff
-        </button>
+    <div className="members-page">
+      <div className="members-header">
+        <div>
+          <h1>Staff Management</h1>
+          <p className="members-sub">Manage church staff records and employment details</p>
+        </div>
+        <div className="members-actions">
+          <button type="button" className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            Add Staff
+          </button>
+        </div>
       </div>
 
-      {message && <div className={message.includes('Error') ? 'error-message' : 'success-message'} style={{ marginBottom: '16px' }}>{message}</div>}
+      {message && <div className={message.includes('Error') ? 'error-message' : 'success-message'}>{message}</div>}
 
       {showForm && (
-        <div className="card" style={{ marginBottom: '20px' }}>
+        <div className="card">
           <h3>{editing ? 'Edit Staff' : 'Add Staff'}</h3>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="member-form-grid">
               <div className="form-group">
-                <label>First Name *</label>
-                <input name="firstname" value={formData.firstname} onChange={handleChange} required />
+                <label htmlFor="staff-firstname">First Name *</label>
+                <input id="staff-firstname" name="firstname" value={formData.firstname} onChange={handleChange} required />
               </div>
               <div className="form-group">
-                <label>Last Name *</label>
-                <input name="lastname" value={formData.lastname} onChange={handleChange} required />
+                <label htmlFor="staff-lastname">Last Name *</label>
+                <input id="staff-lastname" name="lastname" value={formData.lastname} onChange={handleChange} required />
               </div>
               <div className="form-group">
-                <label>Email</label>
-                <input name="email" type="email" value={formData.email} onChange={handleChange} />
+                <label htmlFor="staff-email">Email</label>
+                <input id="staff-email" name="email" type="email" value={formData.email} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Phone</label>
-                <input name="phone" value={formData.phone} onChange={handleChange} />
+                <label htmlFor="staff-phone">Phone</label>
+                <input id="staff-phone" name="phone" value={formData.phone} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Position *</label>
-                <input name="position" value={formData.position} onChange={handleChange} required placeholder="e.g. Secretary, Pastor" />
+                <label htmlFor="staff-position">Position *</label>
+                <input id="staff-position" name="position" value={formData.position} onChange={handleChange} required placeholder="e.g. Secretary, Pastor" />
               </div>
               <div className="form-group">
-                <label>Department</label>
-                <select name="department_id" value={formData.department_id} onChange={handleChange}>
+                <label htmlFor="staff-department">Department</label>
+                <select id="staff-department" name="department_id" value={formData.department_id} onChange={handleChange}>
                   <option value="">None</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.department_name}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label>Employment Date</label>
-                <input name="employment_date" type="date" value={formData.employment_date} onChange={handleChange} />
+                <label htmlFor="staff-employment">Employment Date</label>
+                <input id="staff-employment" name="employment_date" type="date" value={formData.employment_date} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Salary</label>
-                <input name="salary" type="number" step="0.01" value={formData.salary} onChange={handleChange} />
+                <label htmlFor="staff-salary">Salary</label>
+                <input id="staff-salary" name="salary" type="number" step="0.01" value={formData.salary} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Currency</label>
-                <CurrencySelect name="currency" value={formData.currency} onChange={handleChange} />
+                <label htmlFor="staff-currency">Currency</label>
+                <CurrencySelect id="staff-currency" name="currency" value={formData.currency} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>Address</label>
-                <input name="address" value={formData.address} onChange={handleChange} />
+                <label htmlFor="staff-address">Address</label>
+                <input id="staff-address" name="address" value={formData.address} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>City</label>
-                <input name="city" value={formData.city} onChange={handleChange} />
+                <label htmlFor="staff-city">City</label>
+                <input id="staff-city" name="city" value={formData.city} onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label>State</label>
-                <input name="state" value={formData.state} onChange={handleChange} />
+                <label htmlFor="staff-state">State</label>
+                <input id="staff-state" name="state" value={formData.state} onChange={handleChange} />
               </div>
-              <div className="form-group">
-                <label>Country</label>
-                <input name="country" value={formData.country} onChange={handleChange} />
+              <div className="form-group full">
+                <label htmlFor="staff-country">Country</label>
+                <input id="staff-country" name="country" value={formData.country} onChange={handleChange} />
+              </div>
+              <div className="form-group full">
+                <label htmlFor="staff-notes">Notes</label>
+                <textarea id="staff-notes" name="notes" value={formData.notes} onChange={handleChange} rows={2} />
               </div>
             </div>
-            <div className="form-group">
-              <label>Notes</label>
-              <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2} />
-            </div>
-            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+            <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
               <button type="submit" className="btn btn-primary">{editing ? 'Update' : 'Add'} Staff</button>
-              <button type="button" className="btn btn-danger" onClick={resetForm}>Cancel</button>
+              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
             </div>
           </form>
         </div>
@@ -228,38 +234,42 @@ const StaffManagement = () => {
 
       <div className="card">
         <h3>Staff List ({staff.length})</h3>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Position</th>
-              <th>Department</th>
-              <th>Salary</th>
-              <th>Employment Date</th>
-              {user?.primaryRole?.role_code === 'FINANCE_OFFICER' && <th>Pastor</th>}
-              {canManage && <th>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {staff.map(s => (
-              <tr key={s.id}>
-                <td>{s.firstname} {s.lastname}</td>
-                <td>{s.position}</td>
-                <td>{s.department_name || '-'}</td>
-                <td>{formatCurrency(s.salary, s.currency)}</td>
-                <td>{s.employment_date ? new Date(s.employment_date).toLocaleDateString() : '-'}</td>
-                {user?.primaryRole?.role_code === 'FINANCE_OFFICER' && <td>{s.pastor_name || '-'}</td>}
-                {canManage && (
-                  <td>
-                    <button type="button" className="btn btn-primary" style={{ marginRight: '8px', padding: '4px 10px' }} onClick={() => handleEdit(s)}>Edit</button>
-                    <button type="button" className="btn btn-danger" style={{ padding: '4px 10px' }} onClick={() => handleDeactivate(s.id)}>Deactivate</button>
-                  </td>
-                )}
+        <div className="members-table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Department</th>
+                <th>Salary</th>
+                <th>Employment Date</th>
+                {user?.primaryRole?.role_code === 'FINANCE_OFFICER' && <th>Pastor</th>}
+                {canManage && <th>Actions</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {staff.length === 0 && <p style={{ padding: '16px', color: '#666' }}>No staff records.</p>}
+            </thead>
+            <tbody>
+              {staff.map(s => (
+                <tr key={s.id}>
+                  <td>{s.firstname} {s.lastname}</td>
+                  <td>{s.position}</td>
+                  <td>{s.department_name || '-'}</td>
+                  <td>{formatCurrency(s.salary, s.currency)}</td>
+                  <td>{s.employment_date ? new Date(s.employment_date).toLocaleDateString() : '-'}</td>
+                  {user?.primaryRole?.role_code === 'FINANCE_OFFICER' && <td>{s.pastor_name || '-'}</td>}
+                  {canManage && (
+                    <td>
+                      <div className="members-actions">
+                        <button type="button" className="btn btn-primary btn-sm" onClick={() => handleEdit(s)}>Edit</button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s.id)}>Deactivate</button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {staff.length === 0 && <p className="muted">No staff records.</p>}
       </div>
     </div>
   );

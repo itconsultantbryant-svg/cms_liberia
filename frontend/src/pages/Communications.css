@@ -1,6 +1,6 @@
 .communications-container {
-  padding: 20px;
-  max-width: 1400px;
+  padding: 0;
+  max-width: var(--cms-content-max, 1180px);
   margin: 0 auto;
 }
 
@@ -17,19 +17,19 @@
 }
 
 .btn-compose {
-  background: #4CAF50;
+  background: var(--church-secondary, #2c7a9b);
   color: white;
   border: none;
   padding: 12px 24px;
-  border-radius: 5px;
+  border-radius: var(--cms-radius-sm, 6px);
   cursor: pointer;
   font-size: 16px;
-  font-weight: bold;
-  transition: background 0.3s;
+  font-weight: 600;
+  transition: filter 0.2s ease, transform 120ms ease;
 }
 
 .btn-compose:hover {
-  background: #45a049;
+  filter: brightness(0.94);
 }
 
 .communications-tabs {

@@ -1,7 +1,8 @@
 .layout {
   display: flex;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  min-height: 100dvh;
+  background-color: var(--cms-bg, #f0f3f7);
   --sidebar-width: 280px;
   --sidebar-collapsed-width: 72px;
 }
@@ -9,7 +10,7 @@
 .layout-loading {
   padding: 40px;
   text-align: center;
-  color: #666;
+  color: var(--cms-text-muted, #5a6b7d);
 }
 
 body.cms-drawer-open {
@@ -204,7 +205,8 @@ body.cms-drawer-open {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: margin-left 0.2s ease;
+  min-height: 100dvh;
+  transition: margin-left var(--cms-transition, 180ms ease);
   min-width: 0;
 }
 
@@ -214,9 +216,10 @@ body.cms-drawer-open {
 
 /* Topbar */
 .topbar {
-  background-color: white;
+  background-color: var(--cms-surface, #fff);
   padding: 10px 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--cms-border, #d8e0ea);
+  box-shadow: var(--cms-shadow, 0 1px 2px rgba(16, 24, 40, 0.06));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -225,6 +228,7 @@ body.cms-drawer-open {
   position: sticky;
   top: 0;
   flex-wrap: wrap;
+  backdrop-filter: saturate(1.1);
 }
 
 .topbar-left {
@@ -655,9 +659,9 @@ body.cms-drawer-open {
 
 .main-content {
   flex: 1;
-  padding: 24px 28px;
+  padding: 24px 28px 40px;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   max-width: 100%;
 }
 

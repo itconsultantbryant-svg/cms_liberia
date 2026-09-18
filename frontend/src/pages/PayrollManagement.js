@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import './Members.css';
 
 const PayrollManagement = () => {
   const { user } = useAuth();
@@ -124,45 +125,55 @@ const PayrollManagement = () => {
     return <span className={`status-badge ${map[status] || 'badge-default'}`}>{status}</span>;
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="members-page muted">Loading…</div>;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Payroll Management</h2>
+    <div className="members-page">
+      <div className="members-header">
+        <div>
+          <h1>Payroll Management</h1>
+          <p className="members-sub">Create, submit, and review payroll runs</p>
+        </div>
         {isFinance && (
-          <button type="button" className="btn btn-primary" onClick={() => { setShowCreate(true); fetchStaff(); }}>
-            New Payroll Run
-          </button>
+          <div className="members-actions">
+            <button type="button" className="btn btn-primary" onClick={() => { setShowCreate(true); fetchStaff(); }}>
+              New Payroll Run
+            </button>
+          </div>
         )}
       </div>
 
-      {message && <div className={message.includes('Error') ? 'error-message' : 'success-message'} style={{ marginBottom: '16px' }}>{message}</div>}
+      {message && <div className={message.includes('Error') ? 'error-message' : 'success-message'}>{message}</div>}
 
       {showCreate && isFinance && (
-        <div className="card" style={{ marginBottom: '20px' }}>
+        <div className="card">
           <h3>Create Payroll Run</h3>
           <form onSubmit={handleCreateRun}>
-            <div className="form-group">
-              <label>Title *</label>
-              <input value={newRun.title} onChange={e => setNewRun({ ...newRun, title: e.target.value })} required placeholder="e.g. March 2025" />
+            <div className="member-form-grid">
+              <div className="form-group full">
+                <label htmlFor="payroll-title">Title *</label>
+                <input id="payroll-title" value={newRun.title} onChange={e => setNewRun({ ...newRun, title: e.target.value })} required placeholder="e.g. March 2025" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="payroll-start">Period Start *</label>
+                <input id="payroll-start" type="date" value={newRun.period_start} onChange={e => setNewRun({ ...newRun, period_start: e.target.value })} required />
+              </div>
+              <div className="form-group">
+                <label htmlFor="payroll-end">Period End *</label>
+                <input id="payroll-end" type="date" value={newRun.period_end} onChange={e => setNewRun({ ...newRun, period_end: e.target.value })} required />
+              </div>
             </div>
-            <div className="form-group">
-              <label>Period Start *</label>
-              <input type="date" value={newRun.period_start} onChange={e => setNewRun({ ...newRun, period_start: e.target.value })} required />
+            <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
+              <button type="submit" className="btn btn-primary">Create</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
-            <div className="form-group">
-              <label>Period End *</label>
-              <input type="date" value={newRun.period_end} onChange={e => setNewRun({ ...newRun, period_end: e.target.value })} required />
-            </div>
-            <button type="submit" className="btn btn-primary">Create</button>
-            <button type="button" className="btn btn-danger" style={{ marginLeft: '8px' }} onClick={() => setShowCreate(false)}>Cancel</button>
           </form>
         </div>
       )}
 
       <div className="card">
         <h3>Payroll Runs</h3>
+        <div className="members-table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -195,21 +206,22 @@ const PayrollManagement = () => {
             ))}
           </tbody>
         </table>
-        {runs.length === 0 && <p style={{ padding: '16px', color: '#666' }}>No payroll runs.</p>}
+        </div>
+        {runs.length === 0 && <p className="muted">No payroll runs.</p>}
       </div>
 
       {runDetail && (
-        <div className="card" style={{ marginTop: '20px' }}>
+        <div className="card">
           <h3>{runDetail.title} — {getStatusBadge(runDetail.status)}</h3>
-          <p>Period: {new Date(runDetail.period_start).toLocaleDateString()} - {new Date(runDetail.period_end).toLocaleDateString()} | Total: {formatCurrency(runDetail.total_amount, runDetail.currency)}</p>
+          <p className="muted">Period: {new Date(runDetail.period_start).toLocaleDateString()} - {new Date(runDetail.period_end).toLocaleDateString()} | Total: {formatCurrency(runDetail.total_amount, runDetail.currency)}</p>
 
           {isFinance && runDetail.status === 'draft' && (
             <>
               <h4>Add Staff Entry</h4>
-              <form onSubmit={handleAddEntry} style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end', marginBottom: '16px' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Staff</label>
-                  <select value={addEntry.staff_id} onChange={e => setAddEntry({ ...addEntry, staff_id: e.target.value })} required>
+              <form onSubmit={handleAddEntry} className="member-form-grid" style={{ marginBottom: '16px', alignItems: 'end' }}>
+                <div className="form-group">
+                  <label htmlFor="entry-staff">Staff</label>
+                  <select id="entry-staff" value={addEntry.staff_id} onChange={e => setAddEntry({ ...addEntry, staff_id: e.target.value })} required>
                     <option value="">Select</option>
                     {staff.length === 0 && <option value="" disabled>Load staff first</option>}
                     {staff.map(s => (
@@ -217,19 +229,21 @@ const PayrollManagement = () => {
                     ))}
                   </select>
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Base Salary</label>
-                  <input type="number" step="0.01" value={addEntry.base_salary} onChange={e => setAddEntry({ ...addEntry, base_salary: e.target.value })} required />
+                <div className="form-group">
+                  <label htmlFor="entry-base">Base Salary</label>
+                  <input id="entry-base" type="number" step="0.01" value={addEntry.base_salary} onChange={e => setAddEntry({ ...addEntry, base_salary: e.target.value })} required />
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Allowances</label>
-                  <input type="number" step="0.01" value={addEntry.allowances} onChange={e => setAddEntry({ ...addEntry, allowances: e.target.value })} />
+                <div className="form-group">
+                  <label htmlFor="entry-allow">Allowances</label>
+                  <input id="entry-allow" type="number" step="0.01" value={addEntry.allowances} onChange={e => setAddEntry({ ...addEntry, allowances: e.target.value })} />
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Deductions</label>
-                  <input type="number" step="0.01" value={addEntry.deductions} onChange={e => setAddEntry({ ...addEntry, deductions: e.target.value })} />
+                <div className="form-group">
+                  <label htmlFor="entry-deduct">Deductions</label>
+                  <input id="entry-deduct" type="number" step="0.01" value={addEntry.deductions} onChange={e => setAddEntry({ ...addEntry, deductions: e.target.value })} />
                 </div>
-                <button type="submit" className="btn btn-primary">Add Entry</button>
+                <div className="form-group">
+                  <button type="submit" className="btn btn-primary">Add Entry</button>
+                </div>
               </form>
               {runDetail.entries?.length > 0 && (
                 <button type="button" className="btn btn-primary" onClick={handleSubmitRun} style={{ marginBottom: '12px' }}>Submit for Admin Approval</button>
@@ -238,6 +252,7 @@ const PayrollManagement = () => {
           )}
 
           <h4>Entries ({runDetail.entries?.length || 0})</h4>
+          <div className="members-table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -262,11 +277,14 @@ const PayrollManagement = () => {
               ))}
             </tbody>
           </table>
-          <button type="button" className="btn btn-danger" onClick={() => { setSelectedRun(null); setRunDetail(null); }}>Close</button>
+          </div>
+          <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => { setSelectedRun(null); setRunDetail(null); }}>Close</button>
+          </div>
         </div>
       )}
 
-      <p style={{ marginTop: '16px' }}>
+      <p className="muted" style={{ marginTop: '16px' }}>
         <Link to="/finance">Back to Finance Dashboard</Link>
       </p>
     </div>

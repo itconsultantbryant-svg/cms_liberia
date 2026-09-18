@@ -247,6 +247,9 @@ const Layout = ({ children }) => {
 
   return (
     <div className={layoutClass}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       {mobileOpen && (
         <button
           type="button"
@@ -583,7 +586,9 @@ const Layout = ({ children }) => {
           </div>
         </header>
 
-        <main className="main-content">{children}</main>
+        <main id="main-content" className="main-content" tabIndex={-1}>
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@
 }
 
 .branding-sub {
-  color: #666;
+  color: var(--cms-text-muted, #5a6b7d);
   margin-bottom: 20px;
 }
 

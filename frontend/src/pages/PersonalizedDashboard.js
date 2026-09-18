@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import './Dashboards.css';
 import './PersonalizedDashboard.css';
 
 const PersonalizedDashboard = () => {

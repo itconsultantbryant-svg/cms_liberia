@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import './Dashboards.css';
 import './Dashboard.css';
 
 // Admin Requests View Component - Shows only fully approved requests (viewing only)

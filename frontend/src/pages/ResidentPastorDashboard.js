@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import './Dashboards.css';
 import './ResidentPastorDashboard.css';
 
 const ResidentPastorDashboard = () => {

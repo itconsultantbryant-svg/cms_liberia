@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import './Dashboards.css';
 import './MissionSecretaryDashboard.css';
 
 const MissionSecretaryDashboard = () => {

@@ -1,6 +1,6 @@
 .finance-dashboard {
-  padding: 20px;
-  max-width: 1400px;
+  padding: 0;
+  max-width: var(--cms-content-max, 1180px);
   margin: 0 auto;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--church-secondary, #2c7a9b) 0%, var(--church-primary, #1e3a5f) 100%);
   color: white;
   padding: 20px;
   border-radius: 10px;
@@ -41,7 +41,7 @@
 }
 
 .stat-card.pending {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, var(--church-secondary, #2c7a9b) 0%, color-mix(in srgb, var(--church-primary, #1e3a5f) 75%, #c0392b) 100%);
 }
 
 .stat-card.approved {
@@ -85,7 +85,7 @@
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--church-secondary, #2c7a9b);
 }
 
 .request-card.financial {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { AVAILABLE_PERMISSIONS } from '../config/permissions';
+import './Members.css';
 
 const UserManagement = () => {
   const { user } = useAuth();
@@ -200,82 +201,109 @@ const UserManagement = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="members-page muted">Loading…</div>;
   }
 
   const canManageUsers = user?.primaryRole?.role_code === 'PRESIDENT' || user?.primaryRole?.role_code === 'MISSION_SECRETARY' || user?.isadmin;
 
   if (!canManageUsers) {
-    return <div>You do not have permission to manage users.</div>;
+    return <div className="members-page"><div className="card"><p>You do not have permission to manage users.</p></div></div>;
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: 8, flexWrap: 'wrap' }}>
-        <h2>User Management</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowInvite(true)} className="btn btn-secondary">
+    <div className="members-page">
+      <div className="members-header">
+        <div>
+          <h1>User Management</h1>
+          <p className="members-sub">Invite users, assign roles, and manage account access</p>
+        </div>
+        <div className="members-actions">
+          <button type="button" onClick={() => setShowInvite(true)} className="btn btn-secondary">
             Invite User
           </button>
-          <button onClick={() => { setShowCreateForm(true); setEditingUser(null); }} className="btn btn-primary">
+          <button type="button" onClick={() => { setShowCreateForm(true); setEditingUser(null); }} className="btn btn-primary">
             Create New User Account
           </button>
         </div>
       </div>
 
       {message && (
-        <div className={message.includes('Error') ? 'error-message' : 'success-message'} style={{ marginBottom: '20px' }}>
+        <div className={message.includes('Error') ? 'error-message' : 'success-message'}>
           {message}
         </div>
       )}
 
       {showInvite && (
-        <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card">
           <h3>Invite user</h3>
           <form onSubmit={handleInvite}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <input required placeholder="First name" value={inviteForm.firstname}
-                onChange={(e) => setInviteForm({ ...inviteForm, firstname: e.target.value })} />
-              <input required placeholder="Last name" value={inviteForm.lastname}
-                onChange={(e) => setInviteForm({ ...inviteForm, lastname: e.target.value })} />
-              <input required type="email" placeholder="Email" value={inviteForm.email}
-                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} />
-              <input placeholder="Phone" value={inviteForm.phone}
-                onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })} />
-              <input placeholder="Job title" value={inviteForm.jobTitle}
-                onChange={(e) => setInviteForm({ ...inviteForm, jobTitle: e.target.value })} />
-              <select value={inviteForm.accountType}
-                onChange={(e) => setInviteForm({ ...inviteForm, accountType: e.target.value })}>
-                <option value="branch">Branch login</option>
-                <option value="sub_user">Sub-user</option>
-              </select>
+            <div className="member-form-grid">
+              <div className="form-group">
+                <label htmlFor="invite-fn">First name</label>
+                <input id="invite-fn" required placeholder="First name" value={inviteForm.firstname}
+                  onChange={(e) => setInviteForm({ ...inviteForm, firstname: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="invite-ln">Last name</label>
+                <input id="invite-ln" required placeholder="Last name" value={inviteForm.lastname}
+                  onChange={(e) => setInviteForm({ ...inviteForm, lastname: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="invite-email">Email</label>
+                <input id="invite-email" required type="email" placeholder="Email" value={inviteForm.email}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="invite-phone">Phone</label>
+                <input id="invite-phone" placeholder="Phone" value={inviteForm.phone}
+                  onChange={(e) => setInviteForm({ ...inviteForm, phone: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="invite-job">Job title</label>
+                <input id="invite-job" placeholder="Job title" value={inviteForm.jobTitle}
+                  onChange={(e) => setInviteForm({ ...inviteForm, jobTitle: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="invite-type">Account type</label>
+                <select id="invite-type" value={inviteForm.accountType}
+                  onChange={(e) => setInviteForm({ ...inviteForm, accountType: e.target.value })}>
+                  <option value="branch">Branch login</option>
+                  <option value="sub_user">Sub-user</option>
+                </select>
+              </div>
               {inviteForm.accountType === 'branch' && (
-                <select required value={inviteForm.roleCode}
-                  onChange={(e) => setInviteForm({ ...inviteForm, roleCode: e.target.value })}>
-                  <option value="">Role…</option>
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.role_code}>{r.role_name}</option>
+                <div className="form-group">
+                  <label htmlFor="invite-role">Role</label>
+                  <select id="invite-role" required value={inviteForm.roleCode}
+                    onChange={(e) => setInviteForm({ ...inviteForm, roleCode: e.target.value })}>
+                    <option value="">Role…</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.role_code}>{r.role_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="form-group">
+                <label htmlFor="invite-branch">Branch</label>
+                <select id="invite-branch" value={inviteForm.branchId}
+                  onChange={(e) => setInviteForm({ ...inviteForm, branchId: e.target.value })}>
+                  <option value="">Branch (default HQ)…</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.branchname}</option>
                   ))}
                 </select>
-              )}
-              <select value={inviteForm.branchId}
-                onChange={(e) => setInviteForm({ ...inviteForm, branchId: e.target.value })}>
-                <option value="">Branch (default HQ)…</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.branchname}</option>
-                ))}
-              </select>
+              </div>
             </div>
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+            <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
               <button type="submit" className="btn btn-primary">Send invite</button>
-              <button type="button" className="btn btn-danger" onClick={() => setShowInvite(false)}>Cancel</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowInvite(false)}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
       {showCreateForm && (
-        <div className="card" style={{ marginBottom: '20px' }}>
+        <div className="card">
           <h3>{editingUser ? 'Update User Role' : 'Create New User Account'}</h3>
           <form onSubmit={editingUser ? handleUpdateRole : handleCreateUser}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -470,82 +498,86 @@ const UserManagement = () => {
 
       <div className="card">
         <h3>All Users</h3>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Type</th>
-              <th>Job title</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(userItem => (
-              <tr key={`${userItem.accountType}-${userItem.id}`}>
-                <td>{userItem.displayName || userItem.branchname}</td>
-                <td>{userItem.email}</td>
-                <td>{userItem.accountType || 'branch'}</td>
-                <td>{userItem.jobTitle || userItem.job_title || '—'}</td>
-                <td>
-                  {userItem.primaryRole ? (
-                    <span style={{ fontWeight: 'bold' }}>{userItem.primaryRole.role_name}</span>
-                  ) : (
-                    <span style={{ color: '#999' }}>—</span>
-                  )}
-                </td>
-                <td>{userItem.status || 'active'}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  {userItem.accountType !== 'sub_user' && (
-                    <button
-                      onClick={() => handleEditRole(userItem.id)}
-                      className="btn btn-primary"
-                      style={{ padding: '5px 10px', fontSize: '14px', marginRight: '5px' }}
-                    >
-                      Edit Role
-                    </button>
-                  )}
-                  {(userItem.status === 'invited' || userItem.status === 'suspended') && (
-                    <button
-                      onClick={() => lifecycle(userItem.id, 'activate', userItem.accountType || 'branch')}
-                      className="btn btn-secondary"
-                      style={{ padding: '5px 10px', fontSize: '14px', marginRight: '5px' }}
-                    >
-                      Activate
-                    </button>
-                  )}
-                  {userItem.status !== 'suspended' && (
-                    <button
-                      onClick={() => lifecycle(userItem.id, 'suspend', userItem.accountType || 'branch')}
-                      className="btn btn-secondary"
-                      style={{ padding: '5px 10px', fontSize: '14px', marginRight: '5px' }}
-                    >
-                      Suspend
-                    </button>
-                  )}
-                  <button
-                    onClick={() => lifecycle(userItem.id, 'reset-access', userItem.accountType || 'branch')}
-                    className="btn btn-secondary"
-                    style={{ padding: '5px 10px', fontSize: '14px', marginRight: '5px' }}
-                  >
-                    Reset
-                  </button>
-                  {userItem.accountType !== 'sub_user' && (
-                    <button
-                      onClick={() => handleDeleteUser(userItem.id)}
-                      className="btn btn-danger"
-                      style={{ padding: '5px 10px', fontSize: '14px' }}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </td>
+        <div className="members-table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Type</th>
+                <th>Job title</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map(userItem => (
+                <tr key={`${userItem.accountType}-${userItem.id}`}>
+                  <td>{userItem.displayName || userItem.branchname}</td>
+                  <td>{userItem.email}</td>
+                  <td>{userItem.accountType || 'branch'}</td>
+                  <td>{userItem.jobTitle || userItem.job_title || '—'}</td>
+                  <td>
+                    {userItem.primaryRole ? (
+                      <span style={{ fontWeight: 'bold' }}>{userItem.primaryRole.role_name}</span>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td>{userItem.status || 'active'}</td>
+                  <td>
+                    <div className="members-actions">
+                      {userItem.accountType !== 'sub_user' && (
+                        <button
+                          type="button"
+                          onClick={() => handleEditRole(userItem.id)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Edit Role
+                        </button>
+                      )}
+                      {(userItem.status === 'invited' || userItem.status === 'suspended') && (
+                        <button
+                          type="button"
+                          onClick={() => lifecycle(userItem.id, 'activate', userItem.accountType || 'branch')}
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Activate
+                        </button>
+                      )}
+                      {userItem.status !== 'suspended' && (
+                        <button
+                          type="button"
+                          onClick={() => lifecycle(userItem.id, 'suspend', userItem.accountType || 'branch')}
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Suspend
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => lifecycle(userItem.id, 'reset-access', userItem.accountType || 'branch')}
+                        className="btn btn-secondary btn-sm"
+                      >
+                        Reset
+                      </button>
+                      {userItem.accountType !== 'sub_user' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(userItem.id)}
+                          className="btn btn-danger btn-sm"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
