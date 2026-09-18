@@ -43,12 +43,14 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST-pooler.../church_cms?sslmode=requir
 | `TRUST_PROXY` | `1` |
 | `SERVE_FRONTEND` | `0` |
 | `JWT_SECRET` | long random (32+) |
-| `DATABASE_URL` | Neon pooled URI |
+| `DATABASE_URL` | Neon pooled URI (**required** on Vercel — SQLite will not work) |
 | `DATABASE_URL_MIGRATE` | Optional direct (non-pooler) URI for migrations |
-| `CORS_ORIGIN` | `https://your-app.vercel.app` |
+| `CORS_ORIGIN` | `https://your-app.vercel.app` (auto-filled from `VERCEL_URL` if omitted) |
 | `APP_URL` | `https://your-app.vercel.app` |
 
 Do **not** set `REACT_APP_API_URL` when using same-domain `/api` rewrites (browser calls `/api/...` on the Vercel host).
+
+If `/api/health` returns `FUNCTION_INVOCATION_FAILED`, the backend crashed on boot — almost always missing `DATABASE_URL` or `JWT_SECRET`.
 
 5. Run migrations once against Neon (CI, local, or a one-off job):
 

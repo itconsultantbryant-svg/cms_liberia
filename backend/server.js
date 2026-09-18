@@ -15,13 +15,31 @@ const { originCheck, rejectDangerousBody } = require('./middleware/security');
 const { logger, requestLogMiddleware } = require('./utils/logger');
 const { isProductionLike } = require('./config/environments');
 
-// Fail fast if JWT / production secrets misconfigured
+// Vercel / serverless: derive public URL + CORS when operators only set JWT_SECRET
+const onVercel = !!(process.env.VERCEL || process.env.VERCEL_ENV);
+if (onVercel) {
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercelHost) {
+    const origin = vercelHost.startsWith('http') ? vercelHost : `https://${vercelHost}`;
+    if (!process.env.APP_URL) process.env.APP_URL = origin;
+    if (!process.env.CORS_ORIGIN) process.env.CORS_ORIGIN = origin;
+  }
+  if (!process.env.SERVE_FRONTEND) process.env.SERVE_FRONTEND = '0';
+  if (!process.env.TRUST_PROXY) process.env.TRUST_PROXY = '1';
+  if (!process.env.UPLOADS_PATH) process.env.UPLOADS_PATH = path.join('/tmp', 'cms-uploads');
+}
+
+// Do not process.exit on serverless — that yields FUNCTION_INVOCATION_FAILED with no JSON body
+let startupError = null;
 try {
   getJwtSecret();
   assertProductionSecrets();
 } catch (e) {
-  console.error(e.message);
-  process.exit(1);
+  startupError = e;
+  console.error('[startup]', e.message);
+  if (!onVercel && isProductionLike()) {
+    process.exit(1);
+  }
 }
 
 const app = express();
@@ -29,22 +47,44 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
 const prodLike = isProductionLike();
 
+if (startupError) {
+  app.use((req, res, next) => {
+    if (String(req.path || '').startsWith('/api/health')) {
+      return res.status(503).json({
+        success: false,
+        status: 'misconfigured',
+        error: startupError.message,
+        hint: 'Set JWT_SECRET (32+ chars), CORS_ORIGIN, and DATABASE_URL on the backend service'
+      });
+    }
+    return res.status(503).json({
+      success: false,
+      error: startupError.message,
+      code: 'STARTUP_MISCONFIGURED'
+    });
+  });
+}
+
 // Behind Render / nginx / load balancers
 if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true' || prodLike) {
   app.set('trust proxy', 1);
 }
 
-// Ensure upload directories exist (optional UPLOADS_PATH override)
+// Ensure upload directories exist (optional UPLOADS_PATH override; /tmp on Vercel)
 const uploadsDir = process.env.UPLOADS_PATH
   ? path.resolve(process.env.UPLOADS_PATH)
   : path.join(__dirname, 'uploads');
 const communicationsUploads = path.join(uploadsDir, 'communications');
 const brandingUploads = path.join(uploadsDir, 'branding');
 const documentsUploads = path.join(uploadsDir, 'documents');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-if (!fs.existsSync(communicationsUploads)) fs.mkdirSync(communicationsUploads, { recursive: true });
-if (!fs.existsSync(brandingUploads)) fs.mkdirSync(brandingUploads, { recursive: true });
-if (!fs.existsSync(documentsUploads)) fs.mkdirSync(documentsUploads, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  if (!fs.existsSync(communicationsUploads)) fs.mkdirSync(communicationsUploads, { recursive: true });
+  if (!fs.existsSync(brandingUploads)) fs.mkdirSync(brandingUploads, { recursive: true });
+  if (!fs.existsSync(documentsUploads)) fs.mkdirSync(documentsUploads, { recursive: true });
+} catch (e) {
+  console.warn('[uploads] could not create dirs:', e.message);
+}
 
 // Security headers (XSS, clickjacking, MIME sniffing, etc.)
 app.use(helmet({

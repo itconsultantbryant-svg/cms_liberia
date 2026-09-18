@@ -16,10 +16,26 @@ const {
 } = require('./utils/sqlDialect');
 
 const usePg = isPostgres();
+const onVercel = !!(process.env.VERCEL || process.env.VERCEL_ENV);
 
 let db;
 
-if (usePg) {
+if (!usePg && onVercel) {
+  const msg =
+    'DATABASE_URL is required on Vercel (Neon Postgres). SQLite is not supported in serverless.';
+  console.error('[database]', msg);
+  const fail = () => Promise.reject(new Error(msg));
+  db = {
+    dialect: 'none',
+    run() {},
+    get() {},
+    all() {},
+    runAsync: fail,
+    getAsync: fail,
+    allAsync: fail,
+    ping: fail
+  };
+} else if (usePg) {
   const { Pool } = require('pg');
   let connectionString = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
   // Prefer pool ssl config; avoid pg v8/v9 sslmode ambiguity with Neon URIs
