@@ -164,13 +164,17 @@ router.post('/register', authLimiter, async (req, res) => {
 
 router.post('/login', authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = req.body?.password;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const subUser = await db.getAsync('SELECT * FROM sub_users WHERE email = ? AND is_active = 1', [email]);
+    const subUser = await db.getAsync(
+      'SELECT * FROM sub_users WHERE lower(email) = ? AND is_active = 1',
+      [email]
+    );
 
     if (subUser) {
       if (isLocked(subUser)) {
@@ -267,7 +271,7 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
-    const branch = await db.getAsync('SELECT * FROM branches WHERE email = ?', [email]);
+    const branch = await db.getAsync('SELECT * FROM branches WHERE lower(email) = ?', [email]);
     if (!branch) {
       await audit(req, {
         action: 'login_failed',

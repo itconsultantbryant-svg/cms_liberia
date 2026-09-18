@@ -23,7 +23,8 @@ const RoleBasedDashboard = () => {
     let cancelled = false;
     (async () => {
       if (!user) return;
-      if (user.isSuperadmin) {
+      // Platform portal only when not in church support mode
+      if (user.isSuperadmin && !user.supportMode) {
         if (!cancelled) {
           setPersonaId('superadmin');
           setLoading(false);
@@ -32,9 +33,9 @@ const RoleBasedDashboard = () => {
       }
       try {
         const { data } = await axios.get('/api/dashboard/persona');
-        if (!cancelled) setPersonaId(data.persona?.id || 'general');
+        if (!cancelled) setPersonaId(data.persona?.id || (user.isadmin ? 'church_admin' : 'general'));
       } catch (_) {
-        if (!cancelled) setPersonaId('general');
+        if (!cancelled) setPersonaId(user.isadmin ? 'church_admin' : 'general');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -48,7 +49,7 @@ const RoleBasedDashboard = () => {
     return <div style={{ padding: 24 }}>Loading dashboard…</div>;
   }
 
-  if (personaId === 'superadmin' || user.isSuperadmin) {
+  if ((personaId === 'superadmin' || user.isSuperadmin) && !user.supportMode) {
     return <Navigate to="/superadmin" replace />;
   }
 

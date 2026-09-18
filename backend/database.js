@@ -68,9 +68,21 @@ if (!usePg && onVercel) {
       return { rows: [], rowCount: 0 };
     }
     const translated = translateSql(sql);
-    const text = toPgPlaceholders(translated);
+    let text = toPgPlaceholders(translated);
+    // RETURNING id on same connection — lastval() fails across pool clients
+    const wantsLastId =
+      /^\s*INSERT\s+/i.test(sql) &&
+      !/ON\s+CONFLICT\s+DO\s+NOTHING/i.test(translated) &&
+      !/\bRETURNING\b/i.test(translated);
+    if (wantsLastId) {
+      text = `${text.replace(/;\s*$/, '')} RETURNING id`;
+    }
     try {
-      return await pool.query(text, params);
+      const res = await pool.query(text, params);
+      if (wantsLastId && res.rows?.[0]?.id != null) {
+        res._lastID = res.rows[0].id;
+      }
+      return res;
     } catch (err) {
       const retryable =
         /timeout|ETIMEDOUT|ECONNRESET|Connection terminated|Connection ended|could not connect|ECONNREFUSED/i.test(
@@ -88,20 +100,11 @@ if (!usePg && onVercel) {
     dialect: 'postgres',
     pool,
     run(sql, params, cb) {
-      // callback-style rarely used; keep for compatibility
       const args = typeof params === 'function' ? [] : params || [];
       const callback = typeof params === 'function' ? params : cb;
       query(sql, args)
-        .then(async (res) => {
-          let lastID = null;
-          if (/^\s*INSERT\s+/i.test(sql)) {
-            try {
-              const idRes = await pool.query('SELECT lastval() AS id');
-              lastID = idRes.rows[0]?.id ?? null;
-            } catch (_) {
-              lastID = null;
-            }
-          }
+        .then((res) => {
+          const lastID = res._lastID ?? res.rows?.[0]?.id ?? null;
           callback && callback.call({ lastID, changes: res.rowCount || 0 }, null);
         })
         .catch((err) => callback && callback(err));
@@ -121,18 +124,10 @@ if (!usePg && onVercel) {
         .catch((err) => callback && callback(err));
     },
     runAsync(sql, params = []) {
-      return query(sql, params).then(async (res) => {
-        let lastID = null;
-        if (/^\s*INSERT\s+/i.test(sql) && !/ON\s+CONFLICT\s+DO\s+NOTHING/i.test(translateSql(sql))) {
-          try {
-            const idRes = await pool.query('SELECT lastval() AS id');
-            lastID = idRes.rows[0]?.id ?? null;
-          } catch (_) {
-            lastID = null;
-          }
-        }
-        return { lastID, changes: res.rowCount || 0 };
-      });
+      return query(sql, params).then((res) => ({
+        lastID: res._lastID ?? res.rows?.[0]?.id ?? null,
+        changes: res.rowCount || 0
+      }));
     },
     getAsync(sql, params = []) {
       return query(sql, params).then((res) => res.rows[0]);

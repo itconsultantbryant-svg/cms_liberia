@@ -21,13 +21,15 @@ async function createChurchAdministrator({
     throw Object.assign(new Error('churchId, email, password, and branchname are required'), { status: 400 });
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   const pw = validatePassword(password);
   if (!pw.ok) {
     throw Object.assign(new Error(pw.error), { status: 400 });
   }
 
-  const existingBranch = await db.getAsync('SELECT id FROM branches WHERE email = ?', [email]);
-  const existingSub = await db.getAsync('SELECT id FROM sub_users WHERE email = ?', [email]);
+  const existingBranch = await db.getAsync('SELECT id FROM branches WHERE lower(email) = ?', [normalizedEmail]);
+  const existingSub = await db.getAsync('SELECT id FROM sub_users WHERE lower(email) = ?', [normalizedEmail]);
   if (existingBranch || existingSub) {
     throw Object.assign(new Error('Email already exists'), { status: 400 });
   }
@@ -43,7 +45,7 @@ async function createChurchAdministrator({
     [
       branchname,
       branchcode,
-      email,
+      normalizedEmail,
       hashed,
       address,
       city,
@@ -56,6 +58,10 @@ async function createChurchAdministrator({
     ]
   );
 
+  if (!result.lastID) {
+    throw Object.assign(new Error('Failed to create church administrator account'), { status: 500 });
+  }
+
   if (branchcode === 'HQ') {
     await db.runAsync(
       'UPDATE branches SET is_headquarters = 0 WHERE church_id = ? AND id != ?',
@@ -67,7 +73,7 @@ async function createChurchAdministrator({
   await db.runAsync(
     `INSERT INTO members (branch_id, church_id, firstname, lastname, email, password, isadmin, position, sex, title)
      VALUES (?, ?, ?, ?, ?, ?, 1, 'senior pastor', 'male', 'Mr')`,
-    [result.lastID, churchId, firstname, rest.join(' ') || '', email, hashed]
+    [result.lastID, churchId, firstname, rest.join(' ') || '', normalizedEmail, hashed]
   );
 
   try {
@@ -78,7 +84,7 @@ async function createChurchAdministrator({
 
   return {
     id: result.lastID,
-    email,
+    email: normalizedEmail,
     branchname,
     churchId,
     isadmin: 1

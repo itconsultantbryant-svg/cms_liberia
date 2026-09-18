@@ -34,6 +34,20 @@ export const ADMIN_ROLES = ['PRESIDENT', 'MISSION_SECRETARY'];
  */
 export const SIDEBAR_SECTIONS = [
   {
+    title: 'Platform',
+    items: [
+      {
+        path: '/superadmin',
+        label: 'Superadmin Portal',
+        description: 'Churches, plans, support & platform tools',
+        icon: '🛡️',
+        permission: null,
+        roleCodes: null,
+        superadminOnly: true
+      },
+    ],
+  },
+  {
     title: 'Overview',
     items: [
       { path: '/', label: 'Dashboard', description: 'Overview & stats', icon: '📊', permission: 'view_dashboard', roleCodes: null },
@@ -98,22 +112,42 @@ export const SIDEBAR_CONFIG = SIDEBAR_SECTIONS.flatMap(s => s.items);
 
 /**
  * Returns whether the user can see a sidebar item.
- * Admin (PRESIDENT, MISSION_SECRETARY) sees all items except confidential ones.
+ * Platform Superadmin and church admins (isadmin / PRESIDENT) see the full ops menu.
  */
 export function canShowSidebarItem(item, user) {
   if (!user) return false;
+
+  if (item.superadminOnly) {
+    return !!user.isSuperadmin && !user.supportMode;
+  }
+
+  // Platform superadmin (portal mode): full platform + ops visibility
+  if (user.isSuperadmin && !user.supportMode) {
+    return !item.confidential;
+  }
+
+  // Support mode or church admin: full tenant menu (confidential still role-gated)
+  const isChurchAdmin =
+    !!user.isadmin ||
+    ADMIN_ROLES.includes(user.primaryRole?.role_code) ||
+    (user.isSuperadmin && !!user.supportMode);
+
   const isSubUser = user.userType === 'sub_user';
-  const perms = user.permissions || [];
+  const perms = Array.isArray(user.permissions) ? user.permissions : [];
+  const keys = Array.isArray(user.permissionKeys) ? user.permissionKeys : [];
   const roleCode = user.primaryRole?.role_code;
 
   if (item.confidential) {
-    const hasPermission = item.permission && Array.isArray(perms) && perms.includes(item.permission);
+    const hasPermission =
+      (item.permission && perms.includes(item.permission)) ||
+      (item.permission && keys.includes(item.permission)) ||
+      keys.includes('pastoral.view') ||
+      keys.includes('pastoral.manage');
     const hasRole = item.roleCodes && roleCode && item.roleCodes.includes(roleCode);
-    return !!(hasPermission || hasRole);
+    return !!(hasPermission || hasRole || (isChurchAdmin && item.permission === 'pastoral_care' && ADMIN_ROLES.includes(roleCode)));
   }
 
-  if (ADMIN_ROLES.includes(roleCode)) return true;
-  if (user.isadmin && (item.path === '/settings' || item.path === '/settings/branding' || item.path === '/settings/admins' || item.path === '/branches' || item.path === '/workflows')) return true;
+  if (isChurchAdmin) return true;
 
   if (isSubUser) {
     const subUserPermMap = {
@@ -134,8 +168,10 @@ export function canShowSidebarItem(item, user) {
     return false;
   }
 
-  const hasPermission = item.permission && Array.isArray(perms) && perms.includes(item.permission);
+  const hasPermission =
+    (item.permission && perms.includes(item.permission)) ||
+    (item.permission && keys.some((k) => k === item.permission || k.startsWith(`${item.permission}.`)));
   const hasRole = item.roleCodes && roleCode && item.roleCodes.includes(roleCode);
   if (item.path === '/') return true;
-  return hasPermission || hasRole;
+  return !!(hasPermission || hasRole);
 }

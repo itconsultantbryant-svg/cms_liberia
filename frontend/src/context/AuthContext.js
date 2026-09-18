@@ -40,15 +40,23 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token, user } = response.data;
-      if (!token || !user) {
+      const response = await axios.post('/api/auth/login', {
+        email: String(email || '').trim().toLowerCase(),
+        password
+      });
+      const { token, user: loggedIn } = response.data;
+      if (!token || !loggedIn) {
         throw new Error('Invalid response from server');
       }
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(user);
-      return user;
+      setUser(loggedIn);
+      // Refresh from /me so permissionKeys / supportMode match server
+      try {
+        const me = await axios.get('/api/auth/me');
+        if (me.data?.user) setUser(me.data.user);
+      } catch (_) { /* keep login payload */ }
+      return loggedIn;
     } catch (error) {
       console.error('Login error:', error);
       const raw = error.response?.data?.error ?? error.response?.data?.message ?? error.message ?? 'Login failed';

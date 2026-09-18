@@ -193,15 +193,25 @@ const SuperadminPortal = () => {
     e.preventDefault();
     setMessage('');
     setError('');
+    if (!newChurch.adminEmail?.trim() || !newChurch.adminPassword) {
+      setError('First admin email and password are required (this is the church login).');
+      return;
+    }
+    if (newChurch.adminPassword.length < 8) {
+      setError('Admin password must be at least 8 characters with upper, lower, and a digit.');
+      return;
+    }
     try {
-      const payload = { ...newChurch };
-      if (!payload.adminEmail || !payload.adminPassword) {
-        delete payload.adminEmail;
-        delete payload.adminPassword;
-        delete payload.adminName;
-      }
+      const payload = {
+        ...newChurch,
+        adminEmail: newChurch.adminEmail.trim().toLowerCase(),
+        email: (newChurch.email || newChurch.adminEmail).trim().toLowerCase()
+      };
       const { data } = await axios.post('/api/superadmin/churches', payload);
-      setMessage(data.message || 'Church created');
+      const loginEmail = data.admin?.email || payload.adminEmail;
+      setMessage(
+        `${data.message || 'Church created'}. Church login: ${loginEmail} (password = the admin password you just set).`
+      );
       setCreating(false);
       setNewChurch({
         name: '',
@@ -573,25 +583,28 @@ const SuperadminPortal = () => {
                 />
               </div>
               <div className="form-group">
-                <label>First admin email</label>
+                <label>First admin email *</label>
                 <input
                   type="email"
                   value={newChurch.adminEmail || ''}
                   onChange={(e) => setNewChurch({ ...newChurch, adminEmail: e.target.value })}
+                  required
                 />
               </div>
               <div className="form-group">
-                <label>First admin password</label>
+                <label>First admin password *</label>
                 <input
                   type="password"
                   value={newChurch.adminPassword || ''}
                   onChange={(e) => setNewChurch({ ...newChurch, adminPassword: e.target.value })}
                   minLength={8}
+                  required
+                  placeholder="Min 8 chars, upper + lower + digit"
                 />
               </div>
             </div>
             <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
-              Optional: create the first Church Administrator with this church.
+              Required: this creates the church login account. Use this admin email/password on the login page (not the optional church contact email).
             </p>
             <button type="submit" className="btn btn-primary">Create</button>
           </form>

@@ -163,6 +163,11 @@ router.post('/churches', async (req, res) => {
     if (!name) {
       return res.status(400).json({ error: 'Church name is required' });
     }
+    if (!adminEmail || !adminPassword) {
+      return res.status(400).json({
+        error: 'First church admin email and password are required so the church can log in'
+      });
+    }
     const finalSlug = await uniqueChurchSlug(slug || name);
     const result = await db.runAsync(
       `INSERT INTO churches (name, short_name, slug, email, phone, country, city, address, currency, timezone, status)
@@ -181,6 +186,9 @@ router.post('/churches', async (req, res) => {
       ]
     );
     const churchId = result.lastID;
+    if (!churchId) {
+      return res.status(500).json({ error: 'Failed to create church record' });
+    }
     try {
       const { ensureChurchCurrencies } = require('../utils/currencies');
       await ensureChurchCurrencies(churchId, currency || 'USD');
@@ -189,24 +197,22 @@ router.post('/churches', async (req, res) => {
     }
     let admin = null;
 
-    if (adminEmail && adminPassword) {
-      try {
-        admin = await createChurchAdministrator({
-          churchId,
-          email: adminEmail,
-          password: adminPassword,
-          branchname: adminName || `${name} HQ`,
-          branchcode: 'HQ',
-          country: country || '',
-          city: city || '',
-          address: address || '',
-          currency: currency || 'USD'
-        });
-      } catch (e) {
-        // Roll back church if admin creation fails
-        await db.runAsync('DELETE FROM churches WHERE id = ?', [churchId]);
-        return res.status(e.status || 400).json({ error: e.message });
-      }
+    try {
+      admin = await createChurchAdministrator({
+        churchId,
+        email: adminEmail,
+        password: adminPassword,
+        branchname: adminName || `${name} HQ`,
+        branchcode: 'HQ',
+        country: country || '',
+        city: city || '',
+        address: address || '',
+        currency: currency || 'USD'
+      });
+    } catch (e) {
+      // Roll back church if admin creation fails
+      await db.runAsync('DELETE FROM churches WHERE id = ?', [churchId]);
+      return res.status(e.status || 400).json({ error: e.message });
     }
 
     const church = await getChurchById(churchId);
@@ -219,10 +225,14 @@ router.post('/churches', async (req, res) => {
       console.warn('[superadmin] trial assign skipped:', e.message);
     }
     res.status(201).json({
-      message: admin ? 'Church and Church Admin created' : 'Church created',
+      message: `Church created. Login with admin email: ${admin.email}`,
       church: churchSummary(church),
       id: churchId,
       admin,
+      loginHint: {
+        email: admin.email,
+        note: 'Use the password you entered when creating this church (password is never stored in plain text).'
+      },
       subscription: await getChurchSubscription(churchId)
     });
   } catch (error) {
