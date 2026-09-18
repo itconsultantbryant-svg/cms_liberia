@@ -8,6 +8,7 @@ const { requireTenant } = require('../middleware/tenant');
 const { attachRoleInfo } = require('../middleware/roleAuth');
 const {
   resolveTenantByHost,
+  resolveTenantBySlug,
   normalizeHost,
   listDomainsForChurch,
   addChurchDomain,
@@ -15,7 +16,8 @@ const {
   deleteChurchDomain,
   verifyDomainWithToken,
   serializeDomain,
-  getPlatformDomain
+  getPlatformDomain,
+  suggestChurchUrls
 } = require('../utils/domains');
 const { extractRequestHost } = require('../middleware/domainTenant');
 
@@ -30,11 +32,31 @@ function requireChurchAdmin(req, res, next) {
 }
 /**
  * GET /api/tenant/resolve
- * Public — resolve Host (or ?host=) to church branding context.
- * Unknown hosts return 404 with resolved:false (never another church).
+ * Public — resolve Host (or ?host= / ?slug=) to church branding context.
+ * Prefer ?slug= on platform hub hosts so /t/:slug/login works without DNS.
  */
 router.get('/resolve', async (req, res) => {
   try {
+    const slugParam = req.query.slug ? String(req.query.slug).trim() : '';
+    if (slugParam) {
+      const bySlug = await resolveTenantBySlug(slugParam);
+      const payload = {
+        ...bySlug,
+        platformDomain: getPlatformDomain() || null,
+        domain: null
+      };
+      if (!bySlug.resolved) {
+        return res.status(404).json({
+          success: false,
+          error: 'No church found for this slug',
+          code: 'TENANT_SLUG_UNKNOWN',
+          data: payload,
+          ...payload
+        });
+      }
+      return res.json({ success: true, data: payload, ...payload });
+    }
+
     const host = normalizeHost(req.query.host || extractRequestHost(req));
     const requireVerified = req.query.allowPending !== '1';
     const result = await resolveTenantByHost(host, { requireVerified });
@@ -42,7 +64,7 @@ router.get('/resolve', async (req, res) => {
     const payload = {
       ...result,
       platformDomain: getPlatformDomain() || null,
-      // Never leak verification tokens on public resolve for unverified? include for owner UX via auth route
+      ...(result.church?.slug ? suggestChurchUrls(result.church.slug) : {}),
       domain: result.domain
         ? {
             domain: result.domain.domain,
@@ -54,9 +76,12 @@ router.get('/resolve', async (req, res) => {
     };
 
     if (!result.resolved) {
-      // platform_root is ok (hub login) — 200 with resolved false
       if (result.reason === 'platform_root') {
-        return res.json({ success: true, data: payload, ...payload });
+        return res.json({
+          success: true,
+          data: { ...payload, ...suggestChurchUrls('') },
+          ...payload
+        });
       }
       return res.status(404).json({
         success: false,
@@ -72,6 +97,15 @@ router.get('/resolve', async (req, res) => {
     console.error('[tenant/resolve]', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+/** Public platform meta for subdomain suggestions */
+router.get('/platform', (req, res) => {
+  const platformDomain = getPlatformDomain() || null;
+  res.json({
+    platformDomain,
+    ...suggestChurchUrls(req.query.slug || 'example')
+  });
 });
 
 /** Authenticated church-admin domain CRUD */

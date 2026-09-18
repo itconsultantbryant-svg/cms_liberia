@@ -97,6 +97,7 @@ export const AuthProvider = ({ children }) => {
           shortName: branding.shortName || prev.church?.shortName,
           logoUrl: branding.logoUrl ?? prev.church?.logoUrl,
           faviconUrl: branding.faviconUrl ?? prev.church?.faviconUrl,
+          loginBackgroundUrl: branding.loginBackgroundUrl ?? prev.church?.loginBackgroundUrl,
           primaryColor: branding.primaryColor || prev.church?.primaryColor,
           secondaryColor: branding.secondaryColor || prev.church?.secondaryColor
         }

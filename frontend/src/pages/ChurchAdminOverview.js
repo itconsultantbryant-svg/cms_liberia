@@ -36,9 +36,10 @@ const ChurchAdminOverview = () => {
   if (!data) return null;
 
   const o = data.overview;
+  const church = data.church || user?.church || {};
   const tiles = [
     { label: 'Members', value: o.members, to: data.links.members, icon: '👥' },
-    { label: 'Visitors', value: o.visitors, to: data.links.members, icon: '🚶' },
+    { label: 'Visitors', value: o.visitors, to: '/visitors', icon: '🚶' },
     { label: 'Branches', value: o.branches, to: data.links.branches, icon: '🏛️' },
     { label: 'Attendance (30d)', value: o.attendanceLast30Days, to: data.links.attendance, icon: '✓' },
     { label: 'Donations (30d)', value: money(o.donationsLast30Days), to: data.links.donations, icon: '💰' },
@@ -47,16 +48,40 @@ const ChurchAdminOverview = () => {
     { label: 'Ministries', value: o.ministries, to: data.links.ministries, icon: '🙏' },
     { label: 'Staff', value: o.staff, to: data.links.staff, icon: '👔' },
     { label: 'Pending approvals', value: o.pendingApprovals, to: data.links.approvals, icon: '⏳' },
-    { label: 'Admins', value: o.admins, to: data.links.admins, icon: '🛡️' }
+    { label: 'Admins', value: o.admins, to: data.links.admins, icon: '🛡️' },
+    { label: 'Users / subadmins', value: o.subUsers || o.admins, to: '/users', icon: '👤' }
   ];
 
   return (
     <div className="cao-page">
-      <header className="cao-header">
-        <div>
-          <h1>{data.church.name || 'Church'} Administration</h1>
-          <p className="cao-sub">
-            Church-scoped overview for {user?.branchname || user?.email}. Data is limited to your church only.
+      <header className="cao-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+        {church.logoUrl || user?.church?.logoUrl ? (
+          <img
+            src={church.logoUrl || user.church.logoUrl}
+            alt=""
+            style={{ height: 48, width: 48, objectFit: 'contain', borderRadius: 8 }}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            style={{
+              height: 48,
+              width: 48,
+              borderRadius: 8,
+              background: church.primaryColor || user?.church?.primaryColor || '#2c3e50',
+              color: '#fff',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 700
+            }}
+          >
+            {(church.shortName || church.name || user?.church?.name || 'C').charAt(0)}
+          </div>
+        )}
+        <div style={{ flex: 1 }}>
+          <h1 style={{ margin: 0 }}>{church.name || user?.church?.name || 'Church'} Administration</h1>
+          <p className="cao-sub" style={{ margin: '4px 0 0' }}>
+            Manage members, staff, and subadmins · scoped to your church only
           </p>
         </div>
         <Link to="/settings/admins" className="btn btn-primary">Manage admins</Link>

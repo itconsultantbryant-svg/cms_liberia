@@ -19,6 +19,7 @@ const ChurchBranding = () => {
   const [form, setForm] = useState(DEFAULTS);
   const [logoUrl, setLogoUrl] = useState(null);
   const [faviconUrl, setFaviconUrl] = useState(null);
+  const [loginBackgroundUrl, setLoginBackgroundUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -43,6 +44,7 @@ const ChurchBranding = () => {
         });
         setLogoUrl(b.logoUrl || null);
         setFaviconUrl(b.faviconUrl || b.faviconUrlResolved || null);
+        setLoginBackgroundUrl(b.loginBackgroundUrl || null);
       } catch (err) {
         setError(err.response?.data?.error || err.message || 'Failed to load branding');
       } finally {
@@ -93,7 +95,8 @@ const ChurchBranding = () => {
       });
       setMessage(data.message || 'Uploaded');
       if (kind === 'logo') setLogoUrl(data.url);
-      else setFaviconUrl(data.url);
+      else if (kind === 'favicon') setFaviconUrl(data.url);
+      else if (kind === 'login-background') setLoginBackgroundUrl(data.url);
       await afterBranding(data.branding);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Upload failed');
@@ -191,10 +194,10 @@ const ChurchBranding = () => {
       </form>
 
       <div className="branding-uploads card">
-        <h3>Logo & favicon</h3>
+        <h3>Logo, favicon & login background</h3>
         <div className="form-row">
           <div className="form-group">
-            <label>Logo image</label>
+            <label>Logo image (sidebar & dashboards)</label>
             {logoUrl && <img src={logoUrl} alt="Logo" className="branding-thumb" loading="lazy" decoding="async" />}
             <input
               type="file"
@@ -211,6 +214,27 @@ const ChurchBranding = () => {
               onChange={(e) => upload('favicon', e.target.files?.[0])}
             />
           </div>
+        </div>
+        <div className="form-group" style={{ marginTop: 12 }}>
+          <label>Login page background</label>
+          {loginBackgroundUrl && (
+            <img
+              src={loginBackgroundUrl}
+              alt="Login background"
+              className="branding-thumb"
+              style={{ maxWidth: '100%', maxHeight: 120, objectFit: 'cover' }}
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => upload('login-background', e.target.files?.[0])}
+          />
+          <p className="muted" style={{ fontSize: 13 }}>
+            Shown behind the login form on your church portal URL.
+          </p>
         </div>
       </div>
     </div>

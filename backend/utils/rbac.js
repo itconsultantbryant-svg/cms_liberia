@@ -72,7 +72,13 @@ async function getUserPermissions(user, churchId = null) {
       view_events: ['events.manage'],
       view_groups: ['groups.manage'],
       view_communications: ['communications.manage'],
-      pastoral_care: ['pastoral.view', 'pastoral.manage']
+      pastoral_care: ['pastoral.view', 'pastoral.manage'],
+      view_documents: ['documents.view', 'documents.manage'],
+      manage_assets: ['assets.view', 'assets.manage'],
+      departments: ['departments.manage', 'settings.manage'],
+      request_management: ['approvals.manage'],
+      pastor_dashboard: ['reports.view'],
+      vp_dashboard: ['reports.view']
     };
     for (const key of legacy) {
       if (map[key]) map[key].forEach(k => set.add(k));

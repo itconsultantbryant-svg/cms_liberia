@@ -3,22 +3,45 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e3a5f 0%, #2c5f8a 55%, #3d7ea6 100%);
+}
+
+.auth-container--tenant {
+  background-attachment: fixed;
 }
 
 .auth-card {
-  background: white;
+  background: rgba(255, 255, 255, 0.97);
   padding: 40px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 500px;
+  max-width: 440px;
+  text-align: center;
+}
+
+.auth-logo {
+  max-height: 72px;
+  max-width: 100%;
+  margin: 0 auto 16px;
+  object-fit: contain;
+  display: block;
 }
 
 .auth-card h2 {
-  margin-bottom: 30px;
+  margin-bottom: 8px;
   text-align: center;
-  color: #333;
+  color: #1a1a1a;
+}
+
+.auth-church-name {
+  margin: 0 0 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.auth-card .form-group {
+  text-align: left;
 }
 
 .error-message {
@@ -27,6 +50,7 @@
   padding: 10px;
   border-radius: 4px;
   margin-bottom: 20px;
+  text-align: left;
 }
 
 .success-message {
@@ -43,11 +67,10 @@
 }
 
 .auth-link a {
-  color: #007bff;
+  color: #2c5f8a;
   text-decoration: none;
 }
 
 .auth-link a:hover {
   text-decoration: underline;
 }
-

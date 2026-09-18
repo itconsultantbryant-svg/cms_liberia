@@ -17,12 +17,17 @@ const { isProductionLike } = require('./config/environments');
 
 // Vercel / serverless: derive public URL + CORS when operators only set JWT_SECRET
 const onVercel = !!(process.env.VERCEL || process.env.VERCEL_ENV);
-if (onVercel) {
+  if (onVercel) {
   const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (vercelHost) {
     const origin = vercelHost.startsWith('http') ? vercelHost : `https://${vercelHost}`;
     if (!process.env.APP_URL) process.env.APP_URL = origin;
     if (!process.env.CORS_ORIGIN) process.env.CORS_ORIGIN = origin;
+    if (!process.env.PLATFORM_DOMAIN) {
+      try {
+        process.env.PLATFORM_DOMAIN = new URL(origin).host;
+      } catch (_) { /* */ }
+    }
   }
   if (!process.env.SERVE_FRONTEND) process.env.SERVE_FRONTEND = '0';
   if (!process.env.TRUST_PROXY) process.env.TRUST_PROXY = '1';

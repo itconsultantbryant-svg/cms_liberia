@@ -23,7 +23,7 @@ async function getChurchById(churchId) {
   if (!churchId) return null;
   return db.getAsync(
     `SELECT id, name, short_name, slug, email, phone, website_url, logo_url, favicon_url,
-            primary_color, secondary_color, timezone, currency, status
+            login_background_url, primary_color, secondary_color, timezone, currency, status
      FROM churches WHERE id = ?`,
     [churchId]
   );
@@ -39,6 +39,7 @@ function churchSummary(church) {
     websiteUrl: church.website_url,
     logoUrl: church.logo_url,
     faviconUrl: church.favicon_url,
+    loginBackgroundUrl: church.login_background_url || null,
     primaryColor: church.primary_color || '#2c3e50',
     secondaryColor: church.secondary_color || '#3498db',
     currency: church.currency,
@@ -47,9 +48,15 @@ function churchSummary(church) {
   };
 }
 
+function portalLoginPath(slug) {
+  const s = slugify(slug);
+  return s ? `/t/${s}/login` : '/login';
+}
+
 module.exports = {
   slugify,
   uniqueChurchSlug,
   getChurchById,
-  churchSummary
+  churchSummary,
+  portalLoginPath
 };

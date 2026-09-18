@@ -50,6 +50,15 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST-pooler.../church_cms?sslmode=requir
 
 Do **not** set `REACT_APP_API_URL` when using same-domain `/api` rewrites (browser calls `/api/...` on the Vercel host).
 
+Optional branding / subdomain:
+
+| Key | Example |
+|-----|---------|
+| `PLATFORM_DOMAIN` | `cms-liberia.vercel.app` (or your custom domain apex) |
+| `APP_URL` | `https://cms-liberia.vercel.app` |
+
+Church portals work immediately at `/t/{slug}/login` (logo + colors + optional login background). DNS wildcards (`{slug}.yourdomain.com`) are optional extras you can add under Superadmin → church detail → Custom domains.
+
 If `/api/health` returns `FUNCTION_INVOCATION_FAILED`, the backend crashed on boot — almost always missing `DATABASE_URL` or `JWT_SECRET`.
 
 5. Run migrations once against Neon (CI, local, or a one-off job):

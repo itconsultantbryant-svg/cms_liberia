@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../database');
 const { authMiddleware } = require('../middleware/auth');
 const { requireSuperadmin } = require('../middleware/tenant');
-const { uniqueChurchSlug, getChurchById, churchSummary } = require('../utils/tenant');
+const { uniqueChurchSlug, getChurchById, churchSummary, slugify } = require('../utils/tenant');
 const {
   createChurchAdministrator,
   listChurchAdmins,
@@ -33,7 +33,8 @@ const {
   deleteChurchDomain,
   markDomainVerified,
   serializeDomain,
-  getPlatformDomain
+  getPlatformDomain,
+  suggestChurchUrls
 } = require('../utils/domains');
 
 router.use(authMiddleware, requireSuperadmin);
@@ -233,6 +234,7 @@ router.post('/churches', async (req, res) => {
         email: admin.email,
         note: 'Use the password you entered when creating this church (password is never stored in plain text).'
       },
+      urls: suggestChurchUrls(church.slug),
       subscription: await getChurchSubscription(churchId)
     });
   } catch (error) {
@@ -309,8 +311,25 @@ router.patch('/churches/:id', async (req, res) => {
       currency: req.body.currency,
       timezone: req.body.timezone,
       primary_color: req.body.primaryColor ?? req.body.primary_color,
-      secondary_color: req.body.secondaryColor ?? req.body.secondary_color
+      secondary_color: req.body.secondaryColor ?? req.body.secondary_color,
+      logo_url: req.body.logoUrl ?? req.body.logo_url,
+      login_background_url: req.body.loginBackgroundUrl ?? req.body.login_background_url
     };
+
+    if (req.body.slug !== undefined) {
+      const nextSlug = slugify(req.body.slug);
+      if (!nextSlug || ['www', 'api', 'app', 'admin', 'superadmin', 'login'].includes(nextSlug)) {
+        return res.status(400).json({ error: 'Invalid or reserved slug' });
+      }
+      const taken = await db.getAsync(
+        'SELECT id FROM churches WHERE slug = ? AND id != ?',
+        [nextSlug, req.params.id]
+      );
+      if (taken) {
+        return res.status(409).json({ error: 'Slug already in use' });
+      }
+      fields.slug = nextSlug;
+    }
 
     const sets = [];
     const params = [];
@@ -328,7 +347,12 @@ router.patch('/churches/:id', async (req, res) => {
     await db.runAsync(`UPDATE churches SET ${sets.join(', ')} WHERE id = ?`, params);
 
     const updated = await db.getAsync('SELECT * FROM churches WHERE id = ?', [req.params.id]);
-    res.json({ message: 'Church updated', church: updated, summary: churchSummary(updated) });
+    res.json({
+      message: 'Church updated',
+      church: updated,
+      summary: churchSummary(updated),
+      urls: suggestChurchUrls(updated.slug)
+    });
   } catch (error) {
     console.error('[superadmin patch church]', error);
     res.status(500).json({ error: error.message });
@@ -829,11 +853,14 @@ router.get('/churches/:id/domains', async (req, res) => {
     const church = await getChurchById(req.params.id);
     if (!church) return res.status(404).json({ error: 'Church not found' });
     const rows = await listDomainsForChurch(church.id);
+    const urls = suggestChurchUrls(church.slug);
     res.json({
       church: churchSummary(church),
       domains: rows.map(serializeDomain),
-      platformDomain: getPlatformDomain() || null,
-      subdomainUrl: getPlatformDomain() ? `${church.slug}.${getPlatformDomain()}` : null
+      platformDomain: urls.platformDomain,
+      subdomainUrl: urls.subdomainUrl,
+      portalUrl: urls.portalUrl,
+      urls
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

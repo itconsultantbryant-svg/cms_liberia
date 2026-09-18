@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './Auth.css';
@@ -12,14 +12,16 @@ const Login = () => {
   const [portal, setPortal] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { slug: routeSlug } = useParams();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const host = window.location.hostname;
+        const params = routeSlug ? { slug: routeSlug } : { host };
         const { data } = await axios.get('/api/tenant/resolve', {
-          params: { host },
+          params,
           validateStatus: () => true
         });
         if (cancelled) return;
@@ -27,6 +29,21 @@ const Login = () => {
           setPortal(data.church);
           if (data.church.primaryColor) {
             document.documentElement.style.setProperty('--church-primary', data.church.primaryColor);
+          }
+          if (data.church.secondaryColor) {
+            document.documentElement.style.setProperty('--church-secondary', data.church.secondaryColor);
+          }
+          if (data.church.faviconUrl) {
+            let link = document.querySelector("link[rel='icon']");
+            if (!link) {
+              link = document.createElement('link');
+              link.rel = 'icon';
+              document.head.appendChild(link);
+            }
+            link.href = data.church.faviconUrl;
+          }
+          if (data.church.name) {
+            document.title = `${data.church.shortName || data.church.name} · Login`;
           }
         } else if (data?.reason === 'platform_root') {
           setPortal(null);
@@ -38,7 +55,7 @@ const Login = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [routeSlug]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,22 +74,36 @@ const Login = () => {
   };
 
   const title = portal?.shortName || portal?.name || 'Login';
+  const bg = portal?.loginBackgroundUrl;
+  const primary = portal?.primaryColor || '#2c3e50';
+  const secondary = portal?.secondaryColor || '#3498db';
+  const containerStyle = bg
+    ? {
+        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.45), rgba(0,0,0,0.55)), url(${bg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+      }
+    : portal
+      ? {
+          background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`
+        }
+      : undefined;
 
   return (
-    <div className="auth-container">
+    <div className={`auth-container${portal ? ' auth-container--tenant' : ''}`} style={containerStyle}>
       <div className="auth-card">
         {portal?.logoUrl && (
           <img
+            className="auth-logo"
             src={portal.logoUrl}
             alt={portal.name || 'Church'}
-            style={{ maxHeight: 56, marginBottom: 12, objectFit: 'contain' }}
             loading="lazy"
             decoding="async"
           />
         )}
         <h2>{title}</h2>
         {portal?.name && title !== portal.name && (
-          <p style={{ marginTop: -8, color: '#666', fontSize: 14 }}>{portal.name}</p>
+          <p className="auth-church-name">{portal.name}</p>
         )}
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
@@ -83,6 +114,7 @@ const Login = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
             />
           </div>
           <div className="form-group">
@@ -92,6 +124,7 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
             />
           </div>
           <button
@@ -104,11 +137,11 @@ const Login = () => {
           </button>
         </form>
         <p className="auth-link">
-          <a href="/forgot-password">Forgot password?</a>
+          <Link to="/forgot-password">Forgot password?</Link>
         </p>
         {!portal && (
           <p className="auth-link">
-            Don't have an account? <a href="/register">Register</a>
+            Don't have an account? <Link to="/register">Register</Link>
           </p>
         )}
       </div>

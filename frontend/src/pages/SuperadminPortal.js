@@ -40,6 +40,20 @@ const SuperadminPortal = () => {
   const [catalogCurrencies, setCatalogCurrencies] = useState([]);
   const [currencyForm, setCurrencyForm] = useState({ code: '', name: '', symbol: '' });
   const [currencyBusy, setCurrencyBusy] = useState(false);
+  const [slugManual, setSlugManual] = useState(false);
+  const [platformMeta, setPlatformMeta] = useState({ platformDomain: null });
+  const [domainForm, setDomainForm] = useState('');
+  const [slugEdit, setSlugEdit] = useState('');
+  const [churchDomains, setChurchDomains] = useState([]);
+  const [churchUrls, setChurchUrls] = useState(null);
+
+  const slugify = (text) =>
+    String(text || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .substring(0, 80);
 
   const LOCKABLE = [
     { key: 'currency', label: 'Currency' },
@@ -83,8 +97,27 @@ const SuperadminPortal = () => {
   useEffect(() => {
     if (user?.isSuperadmin) {
       load();
+      axios
+        .get('/api/tenant/platform')
+        .then((r) => setPlatformMeta(r.data || {}))
+        .catch(() => {});
     }
   }, [user, load]);
+
+  const loadDomains = async (churchId) => {
+    try {
+      const { data } = await axios.get(`/api/superadmin/churches/${churchId}/domains`);
+      setChurchDomains(data.domains || []);
+      setChurchUrls(data.urls || {
+        subdomainUrl: data.subdomainUrl,
+        portalUrl: data.portalUrl,
+        platformDomain: data.platformDomain
+      });
+    } catch (_) {
+      setChurchDomains([]);
+      setChurchUrls(null);
+    }
+  };
 
   if (!user?.isSuperadmin) {
     return <Navigate to="/" replace />;
@@ -95,10 +128,12 @@ const SuperadminPortal = () => {
     try {
       const { data } = await axios.get(`/api/superadmin/churches/${id}`);
       setSelected(data);
+      setSlugEdit(data.church?.slug || '');
       setSubForm({
         planId: data.subscription?.plan_id || data.church?.subscription_plan_id || '',
         status: data.subscription?.status || 'active'
       });
+      await loadDomains(id);
       try {
         const settingsRes = await axios.get(`/api/superadmin/churches/${id}/settings`);
         setLockedFields(settingsRes.data.settings?.lockedFields || []);
@@ -107,6 +142,52 @@ const SuperadminPortal = () => {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load church');
+    }
+  };
+
+  const saveSlug = async (e) => {
+    e.preventDefault();
+    if (!selected?.church?.id) return;
+    setMessage('');
+    setError('');
+    try {
+      const { data } = await axios.patch(`/api/superadmin/churches/${selected.church.id}`, {
+        slug: slugEdit
+      });
+      setMessage(`Slug updated. Portal: ${data.urls?.portalUrl || `/t/${data.summary?.slug}/login`}`);
+      setChurchUrls(data.urls || churchUrls);
+      await openDetail(selected.church.id);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Slug update failed');
+    }
+  };
+
+  const addCustomDomain = async (e) => {
+    e.preventDefault();
+    if (!selected?.church?.id || !domainForm.trim()) return;
+    setError('');
+    try {
+      await axios.post(`/api/superadmin/churches/${selected.church.id}/domains`, {
+        domain: domainForm.trim(),
+        verified: true,
+        isPrimary: true
+      });
+      setDomainForm('');
+      setMessage('Custom domain added');
+      await loadDomains(selected.church.id);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add domain');
+    }
+  };
+
+  const removeDomain = async (domainId) => {
+    if (!selected?.church?.id) return;
+    try {
+      await axios.delete(`/api/superadmin/churches/${selected.church.id}/domains/${domainId}`);
+      await loadDomains(selected.church.id);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to remove domain');
     }
   };
 
@@ -209,10 +290,15 @@ const SuperadminPortal = () => {
       };
       const { data } = await axios.post('/api/superadmin/churches', payload);
       const loginEmail = data.admin?.email || payload.adminEmail;
+      const portal = data.urls?.portalUrl || (data.church?.slug ? `/t/${data.church.slug}/login` : '');
+      const sub = data.urls?.subdomainUrl;
       setMessage(
-        `${data.message || 'Church created'}. Church login: ${loginEmail} (password = the admin password you just set).`
+        `${data.message || 'Church created'}. Admin login: ${loginEmail}. ` +
+          `Branded portal: ${portal}` +
+          (sub ? ` · Suggested subdomain: ${sub}` : '')
       );
       setCreating(false);
+      setSlugManual(false);
       setNewChurch({
         name: '',
         slug: '',
@@ -553,19 +639,36 @@ const SuperadminPortal = () => {
                 <label>Name</label>
                 <input
                   value={newChurch.name}
-                  onChange={(e) => setNewChurch({ ...newChurch, name: e.target.value })}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setNewChurch((prev) => ({
+                      ...prev,
+                      name,
+                      slug: slugManual ? prev.slug : slugify(name)
+                    }));
+                  }}
                   required
                 />
               </div>
               <div className="form-group">
-                <label>Slug (optional)</label>
+                <label>Suggested subdomain slug</label>
                 <input
                   value={newChurch.slug}
-                  onChange={(e) => setNewChurch({ ...newChurch, slug: e.target.value })}
+                  onChange={(e) => {
+                    setSlugManual(true);
+                    setNewChurch({ ...newChurch, slug: slugify(e.target.value) });
+                  }}
+                  placeholder="auto-from-name"
                 />
+                <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Portal URL: <code>/t/{newChurch.slug || 'slug'}/login</code>
+                  {platformMeta.platformDomain && newChurch.slug
+                    ? <> · Subdomain: <code>{newChurch.slug}.{platformMeta.platformDomain}</code></>
+                    : null}
+                </p>
               </div>
               <div className="form-group">
-                <label>Email (optional)</label>
+                <label>Contact email (optional)</label>
                 <input
                   type="email"
                   value={newChurch.email}
@@ -672,7 +775,28 @@ const SuperadminPortal = () => {
             {selected && (
               <div className="superadmin-detail card">
                 <h3>{selected.church.name}</h3>
-                <p className="muted">slug: {selected.church.slug}</p>
+                <form onSubmit={saveSlug} className="form-row" style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+                  <label>
+                    Subdomain slug
+                    <input value={slugEdit} onChange={(e) => setSlugEdit(slugify(e.target.value))} required />
+                  </label>
+                  <button type="submit" className="btn btn-secondary">Update slug</button>
+                </form>
+                {churchUrls && (
+                  <div className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+                    <div>
+                      Branded login portal:{' '}
+                      <a href={churchUrls.portalPath || `/t/${selected.church.slug}/login`} target="_blank" rel="noreferrer">
+                        {churchUrls.portalUrl || `/t/${selected.church.slug}/login`}
+                      </a>
+                    </div>
+                    {churchUrls.subdomainUrl && (
+                      <div>
+                        Suggested subdomain: <code>{churchUrls.subdomainUrl}</code>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p>Email: {selected.church.email || '—'}</p>
                 <p>Location: {[selected.church.city, selected.church.country].filter(Boolean).join(', ') || '—'}</p>
                 <p>
@@ -685,6 +809,28 @@ const SuperadminPortal = () => {
                   Stats: {selected.stats.branchCount} branches · {selected.stats.memberCount} members ·{' '}
                   {selected.stats.subUserCount} sub-users
                 </p>
+
+                <h4>Custom domains</h4>
+                <ul style={{ paddingLeft: 18, marginBottom: 8 }}>
+                  {churchDomains.map((d) => (
+                    <li key={d.id}>
+                      <code>{d.domain}</code> · {d.verificationStatus}
+                      {d.isPrimary ? ' · primary' : ''}
+                      <button type="button" className="btn-link" style={{ marginLeft: 8 }} onClick={() => removeDomain(d.id)}>
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                  {!churchDomains.length && <li className="muted">No custom domains yet</li>}
+                </ul>
+                <form onSubmit={addCustomDomain} className="form-row" style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+                  <input
+                    placeholder="church.example.com"
+                    value={domainForm}
+                    onChange={(e) => setDomainForm(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-secondary">Add & verify domain</button>
+                </form>
 
                 <h4>Subscription</h4>
                 {selected.subscription ? (

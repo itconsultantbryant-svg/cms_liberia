@@ -46,7 +46,63 @@ function platformRootHosts() {
 }
 
 function getPlatformDomain() {
-  return normalizeHost(process.env.PLATFORM_DOMAIN || '');
+  const explicit = normalizeHost(process.env.PLATFORM_DOMAIN || '');
+  if (explicit) return explicit;
+  // Fallback: APP_URL / Vercel host so UI can still suggest {slug}.host
+  try {
+    const appUrl = process.env.APP_URL || '';
+    if (appUrl) return normalizeHost(new URL(appUrl).host);
+  } catch (_) { /* */ }
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || '';
+  if (vercel) return normalizeHost(vercel);
+  return '';
+}
+
+function getAppOrigin() {
+  const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
+  if (appUrl) return appUrl;
+  const host = getPlatformDomain();
+  return host ? `https://${host}` : '';
+}
+
+/** Suggested public URLs for a church slug (subdomain + path portal). */
+function suggestChurchUrls(slug) {
+  const s = slugify(slug);
+  const platformDomain = getPlatformDomain();
+  const origin = getAppOrigin();
+  return {
+    slug: s,
+    platformDomain: platformDomain || null,
+    subdomainHost: platformDomain && s ? `${s}.${platformDomain}` : null,
+    subdomainUrl: platformDomain && s ? `https://${s}.${platformDomain}` : null,
+    portalPath: s ? `/t/${s}/login` : '/login',
+    portalUrl: origin && s ? `${origin}/t/${s}/login` : null
+  };
+}
+
+async function resolveTenantBySlug(rawSlug) {
+  const slug = slugify(rawSlug);
+  if (!slug) return { resolved: false, reason: 'missing_slug', slug: '' };
+  const church = await db.getAsync(
+    `SELECT id, name, short_name, slug, email, phone, website_url, logo_url, favicon_url,
+            login_background_url, primary_color, secondary_color, timezone, currency, status
+     FROM churches WHERE slug = ?`,
+    [slug]
+  );
+  if (!church) {
+    return { resolved: false, reason: 'unknown_slug', slug, mode: 'slug' };
+  }
+  if (church.status === 'archived') {
+    return { resolved: false, reason: 'church_unavailable', slug, mode: 'slug' };
+  }
+  return {
+    resolved: true,
+    reason: 'slug',
+    mode: 'slug',
+    slug,
+    church: churchSummary(church),
+    ...suggestChurchUrls(slug)
+  };
 }
 
 function isPlatformRootHost(host) {
@@ -255,7 +311,7 @@ async function resolveTenantByHost(rawHost, { requireVerified = true } = {}) {
   if (slug) {
     const church = await db.getAsync(
       `SELECT id, name, short_name, slug, email, phone, website_url, logo_url, favicon_url,
-              primary_color, secondary_color, timezone, currency, status
+              login_background_url, primary_color, secondary_color, timezone, currency, status
        FROM churches WHERE slug = ?`,
       [slug]
     );
@@ -320,6 +376,8 @@ module.exports = {
   normalizeHost,
   platformRootHosts,
   getPlatformDomain,
+  getAppOrigin,
+  suggestChurchUrls,
   isPlatformRootHost,
   subdomainSlug,
   getDomainRow,
@@ -331,6 +389,7 @@ module.exports = {
   markDomainFailed,
   verifyDomainWithToken,
   resolveTenantByHost,
+  resolveTenantBySlug,
   serializeDomain,
   assertLoginAllowedForHost
 };

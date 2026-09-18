@@ -103,6 +103,7 @@ export const SIDEBAR_SECTIONS = [
     items: [
       { path: '/resident-pastor', label: 'Pastor Dashboard', description: 'Resident Pastor view', icon: '🏛️', permission: 'pastor_dashboard', roleCodes: ['RESIDENT_PASTOR', 'RESIDENT_PASTOR_HQ'] },
       { path: '/vice-president', label: 'VP Dashboard', description: 'Vice President view', icon: '👔', permission: 'vp_dashboard', roleCodes: ['VICE_PRESIDENT_MA', 'VICE_PRESIDENT_MISSION'] },
+      { path: '/secretary', label: 'Secretary Dashboard', description: 'Secretary operations', icon: '📝', permission: 'view_dashboard', roleCodes: ['SECRETARY', 'MISSION_SECRETARY'] },
     ],
   },
 ];

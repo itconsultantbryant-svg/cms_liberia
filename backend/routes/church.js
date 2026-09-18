@@ -50,6 +50,7 @@ router.get('/branding', async (req, res) => {
         phone: church.phone || null,
         shortName: church.short_name || null,
         logoUrl: resolveAssetUrl(church.logo_url),
+        loginBackgroundUrl: resolveAssetUrl(church.login_background_url),
         faviconUrlResolved: resolveAssetUrl(church.favicon_url)
       }
     });
@@ -146,7 +147,10 @@ function uploadHandler(kind) {
           visibility: 'public_branding'
         });
         const url = signedUrl(stored, 86400 * 7);
-        const column = kind === 'favicon' ? 'favicon_url' : 'logo_url';
+        let column = 'logo_url';
+        if (kind === 'favicon') column = 'favicon_url';
+        else if (kind === 'login-background' || kind === 'login_background') column = 'login_background_url';
+        else column = 'logo_url';
         await db.runAsync(
           `UPDATE churches SET ${column} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
           [url, req.churchId]
@@ -174,6 +178,7 @@ function uploadHandler(kind) {
 
 router.post('/branding/logo', ...uploadHandler('logo'));
 router.post('/branding/favicon', ...uploadHandler('favicon'));
+router.post('/branding/login-background', ...uploadHandler('login-background'));
 
 const {
   createChurchAdministrator,
