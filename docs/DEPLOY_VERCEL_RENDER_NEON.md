@@ -1,13 +1,14 @@
-# Split deploy: Vercel (frontend) + Render (API) + Neon (Postgres)
+# Deploy: Vercel (Services) + Neon (Postgres)
 
-This is the recommended production layout for the Church Management System.
+Recommended layout: one Vercel project with **frontend + backend services**, Neon for Postgres.
 
 | Layer | Host | Notes |
 |-------|------|--------|
-| Frontend | **Vercel** | React CRA build; talks to Render via `REACT_APP_API_URL` |
-| Backend | **Render** | Express API only (`SERVE_FRONTEND=0`) |
+| Frontend + API | **Vercel Services** | Root [`vercel.json`](../vercel.json) routes `/api` → backend, everything else → CRA |
 | Database | **Neon** | Postgres via `DATABASE_URL` (pooled + `sslmode=require`) |
-| Files | Render disk | `UPLOADS_PATH` / `BACKUP_PATH` on persistent disk |
+| Files | Object storage / disk | Prefer durable storage in production; local `uploads/` is ephemeral on serverless |
+
+**Alternative:** frontend-only on Vercel + API on **Render** (see § Alternative: Render API below). Set `REACT_APP_API_URL` to the Render origin in that case.
 
 Local development can keep **SQLite** (no `DATABASE_URL`).
 
@@ -29,15 +30,12 @@ Set on Render as:
 DATABASE_URL=postgresql://USER:PASSWORD@HOST-pooler.../church_cms?sslmode=require
 ```
 
-## 1. Backend on Render
+## 1. Vercel multi-service project
 
-1. New **Blueprint** from this repo (uses root [`render.yaml`](../render.yaml)), **or** Web Service with:
-   - **Root directory:** `backend`
-   - **Build:** `npm ci && npm run init-db && npm run migrate:deploy`
-   - **Start:** `npm start`
-   - **Health check:** `/api/health`
-2. Attach a **persistent disk** at `/opt/render/project/data` (uploads/backups).
-3. Environment variables:
+1. Import the GitHub repo in Vercel.
+2. **Root Directory:** leave empty (repo root) so [`vercel.json`](../vercel.json) is used.
+3. Ensure the project uses **Services** (framework / project type that reads `services` in `vercel.json`).
+4. Environment variables (apply to the **backend** service / shared project env as needed):
 
 | Key | Example |
 |-----|---------|
@@ -45,47 +43,49 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST-pooler.../church_cms?sslmode=requir
 | `TRUST_PROXY` | `1` |
 | `SERVE_FRONTEND` | `0` |
 | `JWT_SECRET` | long random (32+) |
-| `DATABASE_URL` | Neon pooled URI for the API runtime |
+| `DATABASE_URL` | Neon pooled URI |
 | `DATABASE_URL_MIGRATE` | Optional direct (non-pooler) URI for migrations |
 | `CORS_ORIGIN` | `https://your-app.vercel.app` |
 | `APP_URL` | `https://your-app.vercel.app` |
-| `UPLOADS_PATH` | `/opt/render/project/data/uploads` |
-| `BACKUP_PATH` | `/opt/render/project/data/backups` |
 
-Optional: `PLATFORM_DOMAIN`, SMTP_*, `LOG_LEVEL`.
+Do **not** set `REACT_APP_API_URL` when using same-domain `/api` rewrites (browser calls `/api/...` on the Vercel host).
 
-4. After first deploy, confirm:
-   - `GET https://YOUR-API.onrender.com/api/health` → 200  
-   - `GET https://YOUR-API.onrender.com/api/health/ready` → ready / check list
+5. Run migrations once against Neon (CI, local, or a one-off job):
 
-Build runs `npm ci && npm run init-db && npm run migrate:deploy` so Neon receives base schema then phase migrations.
+```bash
+cd backend && npm run migrate:deploy
+```
+
+6. After deploy, confirm:
+   - `GET https://YOUR-APP.vercel.app/api/health` → 200  
+   - `GET https://YOUR-APP.vercel.app/api/health/ready` → ready / check list  
 
 Create a platform admin once:
 
 ```bash
-# from a machine that can reach the API / or Render shell with DATABASE_URL
 cd backend && npm run create-platform-admin -- you@example.com
 ```
 
-## 2. Frontend on Vercel
+Routing (from root `vercel.json`):
 
-1. Import the GitHub repo in Vercel.
-2. **Root Directory:** `frontend`
-3. **Build Command:** `npm run build` (or `npm run vercel-build`)
-4. **Output Directory:** `build`
-5. Environment variable:
+- `/api` → **backend** (Express)
+- all other paths → **frontend** (CRA)
+
+## 2. Alternative: Render API + Vercel frontend only
+
+1. New **Blueprint** from this repo ([`render.yaml`](../render.yaml)), **or** Web Service with root `backend`, build `npm ci && npm run init-db && npm run migrate:deploy`, start `npm start`, health `/api/health`.
+2. Attach a **persistent disk** at `/opt/render/project/data` for uploads/backups.
+3. Same backend env as above, plus `UPLOADS_PATH` / `BACKUP_PATH` on the disk; set `CORS_ORIGIN` to the Vercel URL.
+4. On Vercel, either keep multi-service and point only frontend at the repo, **or** deploy `frontend` alone with:
 
 | Key | Value |
 |-----|--------|
 | `REACT_APP_API_URL` | `https://YOUR-API.onrender.com` (no trailing slash) |
 
-6. Deploy. Open the Vercel URL and log in against the Render API.
-
-SPA routing is handled by [`frontend/vercel.json`](../frontend/vercel.json).
-
 ## 3. CORS & cookies
 
-- Browser origin is the **Vercel** URL → must be listed in Render `CORS_ORIGIN`.
+- Same-domain Vercel Services: API is `/api` on the app origin; still set `CORS_ORIGIN` to that origin if CORS middleware is strict.
+- Split Render API: browser origin is Vercel → must be listed in Render `CORS_ORIGIN`.
 - API calls use `Authorization: Bearer …` (no cookie session required).
 - Rebuild the frontend whenever `REACT_APP_API_URL` changes (baked in at build time).
 
@@ -121,13 +121,13 @@ npm start
 
 ## 6. Checklist
 
-- [ ] Neon `DATABASE_URL` on Render  
-- [ ] Render health + ready OK  
-- [ ] `CORS_ORIGIN` includes Vercel URL  
-- [ ] Vercel `REACT_APP_API_URL` points at Render  
+- [ ] Neon `DATABASE_URL` on Vercel (backend) and/or Render  
+- [ ] `GET /api/health` + `/api/health/ready` OK on the public URL  
+- [ ] `CORS_ORIGIN` includes the app origin  
+- [ ] Same-domain deploy: `REACT_APP_API_URL` unset; split deploy: points at Render  
 - [ ] Platform admin created  
 - [ ] Login + create member + finance txn smoke test  
-- [ ] Uploads land on Render disk  
+- [ ] Uploads strategy decided (disk / object storage)  
 - [ ] Rotate any connection strings that were shared outside the secret manager  
 
 ## Related

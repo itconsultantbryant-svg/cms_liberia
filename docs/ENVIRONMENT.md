@@ -25,7 +25,7 @@ Also see root [`.env.example`](../.env.example) and [DEPLOYMENT.md](../DEPLOYMEN
 
 | Name | Notes |
 |------|--------|
-| `REACT_APP_API_URL` | Render API origin, no trailing slash |
+| `REACT_APP_API_URL` | Optional. Leave empty for same-origin `/api` (Vercel Services). Set to API origin when frontend and API are on different hosts. |
 
 ## Rate limits
 

@@ -1,7 +1,8 @@
 /**
  * Frontend API base URL.
  * - Local CRA: leave unset and use package.json "proxy"
- * - Vercel: set REACT_APP_API_URL to the Render API origin (no trailing slash)
+ * - Vercel multi-service (same domain /api → backend): leave unset
+ * - Split host (Render API): set REACT_APP_API_URL to that origin (no trailing slash)
  */
 import axios from 'axios';
 
