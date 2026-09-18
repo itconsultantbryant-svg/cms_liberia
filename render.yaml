@@ -1,36 +1,45 @@
-# Render Blueprint: single Web Service (API + React app)
+# Render Blueprint — API only (frontend on Vercel, database on Neon)
 # https://render.com/docs/blueprint-spec
 services:
   - type: web
-    name: church-management-system
+    name: church-cms-api
     runtime: node
     region: oregon
+    rootDir: backend
 
-    # Build: install deps, build frontend, init DB + migrations
-    buildCommand: npm run build
+    buildCommand: npm ci && npm run init-db && npm run migrate:deploy
     startCommand: npm start
+
+    healthCheckPath: /api/health
 
     envVars:
       - key: NODE_ENV
         value: production
       - key: TRUST_PROXY
         value: "1"
+      - key: SERVE_FRONTEND
+        value: "0"
       - key: LOG_LEVEL
         value: info
       - key: JWT_SECRET
         generateValue: true
-      # Set these in the Render dashboard to your https service URL:
-      # - key: CORS_ORIGIN
-      #   value: https://YOUR-SERVICE.onrender.com
-      # - key: APP_URL
-      #   value: https://YOUR-SERVICE.onrender.com
-      # Attach a Persistent Disk, then set:
-      # - key: DATABASE_PATH
-      #   value: /opt/render/project/data/database.sqlite
-      # - key: UPLOADS_PATH
-      #   value: /opt/render/project/data/uploads
-      # - key: BACKUP_PATH
-      #   value: /opt/render/project/data/backups
+      # Set in Render dashboard (do not commit secrets):
+      # DATABASE_URL = Neon pooled connection string (sslmode=require)
+      # CORS_ORIGIN  = https://your-app.vercel.app
+      # APP_URL      = https://your-app.vercel.app
+      # UPLOADS_PATH / BACKUP_PATH if using a persistent disk for files
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: UPLOADS_PATH
+        value: /opt/render/project/data/uploads
+      - key: BACKUP_PATH
+        value: /opt/render/project/data/backups
 
-    # Liveness probe
-    healthCheckPath: /api/health
+    disk:
+      name: cms-files
+      mountPath: /opt/render/project/data
+      sizeGB: 5

@@ -151,12 +151,35 @@ app.use('/api', notFoundHandler);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-// Production/staging: serve React build and SPA fallback
-if (isProduction || process.env.NODE_ENV === 'staging') {
+// Production/staging: optionally serve React build (monolith).
+// Split deploy (Vercel frontend + Render API): set SERVE_FRONTEND=0
+const serveFrontend =
+  process.env.SERVE_FRONTEND === '1' ||
+  process.env.SERVE_FRONTEND === 'true' ||
+  ((isProduction || process.env.NODE_ENV === 'staging') &&
+    process.env.SERVE_FRONTEND !== '0' &&
+    process.env.SERVE_FRONTEND !== 'false');
+
+if (serveFrontend) {
   const frontendBuild = path.join(__dirname, '..', 'frontend', 'build');
-  app.use(express.static(frontendBuild));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendBuild, 'index.html'));
+  if (fs.existsSync(frontendBuild)) {
+    app.use(express.static(frontendBuild));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendBuild, 'index.html'));
+    });
+  } else {
+    console.warn('SERVE_FRONTEND enabled but frontend/build not found — API-only mode');
+  }
+} else if (isProduction || process.env.NODE_ENV === 'staging') {
+  app.get('/', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Church Management System API',
+      version: '1.1.0',
+      status: 'running',
+      frontend: 'hosted separately (e.g. Vercel)',
+      health: '/api/health'
+    });
   });
 }
 

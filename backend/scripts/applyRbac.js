@@ -161,6 +161,22 @@ async function apply() {
     )
   `);
 
+  // Fast path for Neon / re-runs: skip hundreds of INSERT round-trips when already seeded
+  try {
+    const existingRp = await db.getAsync(`SELECT COUNT(*) as c FROM role_permissions`);
+    const rpCount = Number(existingRp?.c || existingRp?.count || 0);
+    const existingPerms = await db.getAsync(`SELECT COUNT(*) as c FROM permissions`);
+    const permCount = Number(existingPerms?.c || existingPerms?.count || 0);
+    if (rpCount >= 50 && permCount >= 20) {
+      console.log(
+        `RBAC permissions seed complete (already seeded: ${permCount} permissions, ${rpCount} role_permissions).`
+      );
+      process.exit(0);
+    }
+  } catch (_) {
+    /* table may be empty / first run */
+  }
+
   for (const [key, category, description] of PERMISSIONS) {
     await db.runAsync(
       `INSERT OR IGNORE INTO permissions (perm_key, category, description) VALUES (?, ?, ?)`,
@@ -186,6 +202,14 @@ async function apply() {
 
   // Map PRESIDENT etc. scopes
   await db.runAsync(`UPDATE roles SET scope = 'church' WHERE role_code IN ('PRESIDENT','MISSION_SECRETARY','FINANCE_OFFICER','RESIDENT_PASTOR','RESIDENT_PASTOR_HQ') AND church_id IS NULL`);
+
+  // Skip slow per-row seeding when already populated (important for Neon latency)
+  const existingRp = await db.getAsync(`SELECT COUNT(*) as c FROM role_permissions`);
+  const rpCount = Number(existingRp?.c || existingRp?.count || 0);
+  if (rpCount >= 50) {
+    console.log(`RBAC permissions seed complete (skipped reseed; ${rpCount} role_permissions present).`);
+    process.exit(0);
+  }
 
   for (const [roleCode, perms] of Object.entries(ROLE_PERMS)) {
     const role = await db.getAsync(

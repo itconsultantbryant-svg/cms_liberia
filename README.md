@@ -93,7 +93,7 @@ Full technical docs and operator manuals:
 - **[docs/README.md](docs/README.md)** — index (architecture, database, auth, authorization, tenant isolation)
 - Environment variable names: [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) and root [`.env.example`](.env.example)
 - [docs/SUPERADMIN_MANUAL.md](docs/SUPERADMIN_MANUAL.md) · [docs/CHURCH_ADMIN_MANUAL.md](docs/CHURCH_ADMIN_MANUAL.md)
-- Deployment: **[DEPLOYMENT.md](DEPLOYMENT.md)**
+- Deployment: **[DEPLOYMENT.md](DEPLOYMENT.md)** · **[docs/DEPLOY_VERCEL_RENDER_NEON.md](docs/DEPLOY_VERCEL_RENDER_NEON.md)** (Vercel + Render + Neon)
 
 ## Multi-tenant foundation (Phase 1)
 

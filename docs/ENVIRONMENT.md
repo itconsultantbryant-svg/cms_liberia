@@ -13,10 +13,19 @@ Also see root [`.env.example`](../.env.example) and [DEPLOYMENT.md](../DEPLOYMEN
 | `JWT_SECRET` | Required strong secret (staging/production) |
 | `CORS_ORIGIN` | Comma-separated allowed browser origins |
 | `APP_URL` | Public URL for email / reset links |
-| `DATABASE_PATH` | SQLite file path (persistent disk in prod) |
+| `DATABASE_URL` | Neon/Postgres URI (preferred in production) |
+| `NEON_DATABASE_URL` | Alias for `DATABASE_URL` |
+| `DATABASE_PATH` | SQLite file path when `DATABASE_URL` unset |
+| `SERVE_FRONTEND` | `0` = API-only (Vercel hosts UI) |
 | `UPLOADS_PATH` | Optional uploads root |
 | `BACKUP_PATH` | Optional backups root |
 | `TRUST_PROXY` | `1` behind Render/nginx |
+
+## Frontend (Vercel)
+
+| Name | Notes |
+|------|--------|
+| `REACT_APP_API_URL` | Render API origin, no trailing slash |
 
 ## Rate limits
 

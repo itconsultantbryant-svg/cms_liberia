@@ -16,6 +16,7 @@ function buildDeploymentChecklist(envName = process.env.NODE_ENV) {
   const jwt = assessJwtSecret(process.env.JWT_SECRET, profile.nodeEnv === 'staging' ? 'production' : profile.nodeEnv);
   const cors = String(process.env.CORS_ORIGIN || '').trim();
   const appUrl = String(process.env.APP_URL || '').trim();
+  const hasDatabaseUrl = !!(process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
   const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../database.sqlite');
   const uploadsPath = process.env.UPLOADS_PATH || path.join(__dirname, '../uploads');
   const backupPath = process.env.BACKUP_PATH || path.join(__dirname, '../backups');
@@ -47,7 +48,7 @@ function buildDeploymentChecklist(envName = process.env.NODE_ENV) {
       !profile.requireCorsOrigin || !!cors,
       profile.requireCorsOrigin ? 'critical' : 'info',
       cors ? `CORS_ORIGIN set (${cors.split(',').length} origin(s))` : 'CORS_ORIGIN not set',
-      'Set CORS_ORIGIN to your https app origin(s)'
+      'Set CORS_ORIGIN to your https Vercel app origin(s)'
     )
   );
 
@@ -57,40 +58,48 @@ function buildDeploymentChecklist(envName = process.env.NODE_ENV) {
       !isProdLike || (appUrl.startsWith('https://') || appUrl.startsWith('http://localhost')),
       isProdLike ? 'high' : 'info',
       appUrl ? `APP_URL=${appUrl}` : 'APP_URL not set (password-reset / email links need it)',
-      'Set APP_URL=https://your-domain.example'
+      'Set APP_URL=https://your-app.vercel.app'
+    )
+  );
+
+  checks.push(
+    check(
+      'database_url',
+      !profile.recommendPersistentDb || hasDatabaseUrl || !!process.env.DATABASE_PATH,
+      profile.recommendPersistentDb ? 'critical' : 'info',
+      hasDatabaseUrl
+        ? 'DATABASE_URL set (Neon/Postgres)'
+        : process.env.DATABASE_PATH
+          ? `DATABASE_PATH=${process.env.DATABASE_PATH} (SQLite)`
+          : 'No DATABASE_URL or DATABASE_PATH — using default local SQLite',
+      'Set DATABASE_URL to your Neon pooled connection string'
     )
   );
 
   const dbDir = path.dirname(dbPath);
-  const dbWritable = (() => {
-    try {
-      if (!fs.existsSync(dbDir)) return false;
-      fs.accessSync(dbDir, fs.constants.W_OK);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  })();
-
-  checks.push(
-    check(
-      'database_path',
-      !profile.recommendPersistentDb || !!process.env.DATABASE_PATH,
-      profile.recommendPersistentDb ? 'high' : 'info',
-      process.env.DATABASE_PATH
-        ? `DATABASE_PATH=${process.env.DATABASE_PATH}`
-        : 'Using default SQLite under backend/ (ephemeral on many hosts)',
-      'Attach persistent disk and set DATABASE_PATH'
-    )
-  );
+  const dbWritable = hasDatabaseUrl
+    ? true
+    : (() => {
+        try {
+          if (!fs.existsSync(dbDir)) return false;
+          fs.accessSync(dbDir, fs.constants.W_OK);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      })();
 
   checks.push(
     check(
       'database_writable',
       dbWritable,
-      'critical',
-      dbWritable ? `Database directory writable: ${dbDir}` : `Database directory not writable: ${dbDir}`,
-      'Fix filesystem permissions or disk mount'
+      hasDatabaseUrl ? 'info' : 'critical',
+      hasDatabaseUrl
+        ? 'Postgres remote — local SQLite writability not required'
+        : dbWritable
+          ? `Database directory writable: ${dbDir}`
+          : `Database directory not writable: ${dbDir}`,
+      'Fix filesystem permissions or use Neon DATABASE_URL'
     )
   );
 

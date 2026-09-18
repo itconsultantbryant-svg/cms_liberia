@@ -1,5 +1,11 @@
 # Deploying the Church Management System
 
+## Recommended production layout
+
+**Frontend → Vercel · Backend → Render · Database → Neon**
+
+Full checklist: **[docs/DEPLOY_VERCEL_RENDER_NEON.md](docs/DEPLOY_VERCEL_RENDER_NEON.md)**
+
 Phase 39 defines **development**, **staging**, and **production** environments with controlled migrations, health/readiness checks, logging, backups, and configuration for database, storage, email, domain/SSL, and monitoring.
 
 ## Environments
@@ -24,7 +30,9 @@ Example env files (no secrets committed):
 | `JWT_SECRET` | 32+ character signing secret |
 | `CORS_ORIGIN` | Comma-separated https origins |
 | `APP_URL` | Public app URL (email / reset links) |
-| `DATABASE_PATH` | Persistent SQLite file path |
+| `DATABASE_URL` | Neon Postgres pooled URI (preferred) |
+| `DATABASE_PATH` | SQLite path only when `DATABASE_URL` unset |
+| `SERVE_FRONTEND` | `0` for API-only Render (frontend on Vercel) |
 | `TRUST_PROXY` | `1` behind Render/nginx |
 | `UPLOADS_PATH` / `BACKUP_PATH` | Optional persistent storage roots |
 | `SMTP_*` | Optional outbound email |

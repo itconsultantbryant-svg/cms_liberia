@@ -5,6 +5,7 @@
   "description": "Church Management System - full stack",
   "scripts": {
     "build": "cd frontend && npm ci && npm run build && cd ../backend && npm ci && npm run init-db && npm run migrate:deploy",
+    "build:api": "cd backend && npm ci && npm run init-db && npm run migrate:deploy",
     "start": "cd backend && node server.js",
     "predeploy": "cd backend && npm run predeploy",
     "dev:backend": "cd backend && npm run dev",

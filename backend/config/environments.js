@@ -24,7 +24,7 @@ const ENVIRONMENTS = {
     requireCorsOrigin: true,
     allowDemoSeed: false,
     allowDebugReset: false,
-    serveFrontendBuild: true,
+    serveFrontendBuild: false,
     recommendPersistentDb: true,
     trustProxyDefault: true
   },
@@ -36,7 +36,7 @@ const ENVIRONMENTS = {
     requireCorsOrigin: true,
     allowDemoSeed: false,
     allowDebugReset: false,
-    serveFrontendBuild: true,
+    serveFrontendBuild: false,
     recommendPersistentDb: true,
     trustProxyDefault: true
   }
@@ -49,7 +49,10 @@ const ENV_VAR_CATALOG = [
   { key: 'JWT_SECRET', requiredIn: ['staging', 'production'], purpose: 'JWT signing secret (32+ chars)' },
   { key: 'CORS_ORIGIN', requiredIn: ['staging', 'production'], purpose: 'Comma-separated browser origins' },
   { key: 'APP_URL', requiredIn: ['staging', 'production'], purpose: 'Public https URL of the app' },
-  { key: 'DATABASE_PATH', requiredIn: ['production'], purpose: 'Persistent SQLite path (disk mount)' },
+  { key: 'DATABASE_URL', requiredIn: ['production'], purpose: 'Neon/Postgres connection string (preferred over SQLite)' },
+  { key: 'NEON_DATABASE_URL', requiredIn: [], purpose: 'Alias for DATABASE_URL' },
+  { key: 'DATABASE_PATH', requiredIn: [], purpose: 'SQLite path when DATABASE_URL is unset (local/legacy)' },
+  { key: 'SERVE_FRONTEND', requiredIn: [], purpose: 'Set 0 when frontend is on Vercel (API-only Render)' },
   { key: 'UPLOADS_PATH', requiredIn: [], purpose: 'Optional override for file storage root' },
   { key: 'BACKUP_PATH', requiredIn: [], purpose: 'Optional override for backup root' },
   { key: 'TRUST_PROXY', requiredIn: [], purpose: 'Set 1 behind Render/nginx for correct IPs' },

@@ -1,4 +1,4 @@
--- Phase: Multi-currency catalog (USD + LRD system-wide; admins can add more)
+-- Phase: Multi-currency catalog (USD and LRD system-wide - admins can add more)
 CREATE TABLE IF NOT EXISTS currencies (
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL,

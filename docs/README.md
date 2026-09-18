@@ -10,6 +10,7 @@ Phase 43 documentation for the multi-tenant SaaS CMS.
 | [AUTHORIZATION.md](AUTHORIZATION.md) | Roles and permissions |
 | [TENANT_ISOLATION.md](TENANT_ISOLATION.md) | How church boundaries are enforced |
 | [DEPLOYMENT.md](../DEPLOYMENT.md) | Production deployment (root guide) |
+| [DEPLOY_VERCEL_RENDER_NEON.md](DEPLOY_VERCEL_RENDER_NEON.md) | **Vercel + Render + Neon split deploy** |
 | [ENVIRONMENT.md](ENVIRONMENT.md) | Environment variable names (no secrets) |
 | [SUPERADMIN_MANUAL.md](SUPERADMIN_MANUAL.md) | Platform operator guide |
 | [CHURCH_ADMIN_MANUAL.md](CHURCH_ADMIN_MANUAL.md) | Church administrator guide |
