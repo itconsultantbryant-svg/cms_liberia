@@ -112,6 +112,8 @@ const Layout = ({ children }) => {
       const interval = setInterval(fetchNotifications, 5000);
       return () => clearInterval(interval);
     }
+    // Intentionally re-run only when user identity changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {

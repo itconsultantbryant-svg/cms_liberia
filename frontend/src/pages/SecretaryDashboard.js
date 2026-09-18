@@ -14,15 +14,13 @@ const SecretaryDashboard = () => {
     reportsSubmitted: 0
   });
   const [loading, setLoading] = useState(true);
-  const [showMemberForm, setShowMemberForm] = useState(false);
-  const [showAttendanceForm, setShowAttendanceForm] = useState(false);
-  const [showCollectionForm, setShowCollectionForm] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {

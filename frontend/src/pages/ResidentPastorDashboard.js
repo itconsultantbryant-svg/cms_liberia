@@ -9,17 +9,8 @@ const ResidentPastorDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [staff, setStaff] = useState([]);
-  const [subUsers, setSubUsers] = useState([]);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [showStaffModal, setShowStaffModal] = useState(false);
-  const [showSubUserModal, setShowSubUserModal] = useState(false);
-  const [selectedApproval, setSelectedApproval] = useState(null);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [approvalAction, setApprovalAction] = useState('approve');
-  const [approvalComments, setApprovalComments] = useState('');
   const [requestForm, setRequestForm] = useState({
     request_type: 'financial',
     title: '',
@@ -38,21 +29,15 @@ const ResidentPastorDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [dashboardRes, departmentsRes, requestsRes, staffRes, subUsersRes, approvalsRes] = await Promise.all([
+      const [dashboardRes, departmentsRes, requestsRes] = await Promise.all([
         axios.get('/api/dashboard'),
         axios.get('/api/departments'),
-        axios.get('/api/requests'),
-        axios.get('/api/staff'),
-        axios.get('/api/sub-users'),
-        axios.get('/api/approvals/pending')
+        axios.get('/api/requests')
       ]);
 
       setDashboardData(dashboardRes.data);
       setDepartments(departmentsRes.data);
       setRequests(requestsRes.data);
-      setStaff(staffRes.data);
-      setSubUsers(subUsersRes.data);
-      setPendingApprovals(approvalsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -79,47 +64,6 @@ const ResidentPastorDashboard = () => {
     } catch (error) {
       console.error('Error submitting request:', error);
       alert(error.response?.data?.error || 'Failed to submit request');
-    }
-  };
-
-  const handleApproval = async () => {
-    try {
-      await axios.post(`/api/approvals/${selectedApproval.id}/review`, {
-        action: approvalAction,
-        comments: approvalComments
-      });
-      setShowApprovalModal(false);
-      setSelectedApproval(null);
-      setApprovalComments('');
-      fetchData();
-      alert(`Item ${approvalAction === 'approve' ? 'approved' : 'rejected'} successfully`);
-    } catch (error) {
-      console.error('Error processing approval:', error);
-      alert(error.response?.data?.error || 'Failed to process approval');
-    }
-  };
-
-  const handleAddStaff = async (staffData) => {
-    try {
-      await axios.post('/api/staff', staffData);
-      setShowStaffModal(false);
-      fetchData();
-      alert('Staff member added successfully');
-    } catch (error) {
-      console.error('Error adding staff:', error);
-      alert(error.response?.data?.error || 'Failed to add staff member');
-    }
-  };
-
-  const handleCreateSubUser = async (subUserData) => {
-    try {
-      await axios.post('/api/sub-users', subUserData);
-      setShowSubUserModal(false);
-      fetchData();
-      alert('Sub-user created successfully');
-    } catch (error) {
-      console.error('Error creating sub-user:', error);
-      alert(error.response?.data?.error || 'Failed to create sub-user');
     }
   };
 
@@ -150,7 +94,7 @@ const ResidentPastorDashboard = () => {
     return <div className="loading">Loading dashboard...</div>;
   }
 
-  const { stats, attendance, collections, events } = dashboardData || {};
+  const { stats, attendance, collections } = dashboardData || {};
 
   return (
     <div className="resident-pastor-dashboard">

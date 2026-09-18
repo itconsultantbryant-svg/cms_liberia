@@ -71,6 +71,7 @@ const Attendance = () => {
 
   useEffect(() => {
     if (tab === 'stats') loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   const handleSubmit = async (e) => {

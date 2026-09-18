@@ -6,7 +6,6 @@ import './FinanceDashboard.css';
 const FinanceDashboard = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
-  const [collections, setCollections] = useState([]);
   const [financeReports, setFinanceReports] = useState([]);
   const [payrollRuns, setPayrollRuns] = useState([]);
   const [stats, setStats] = useState({
@@ -80,13 +79,10 @@ const FinanceDashboard = () => {
         console.log('[Finance Dashboard] ⚠️ No pending requests found. All request statuses:', [...new Set((requestsRes.data || []).map(r => r.status))]);
       }
 
-      // Filter financial requests for financial-specific sections
-      const financialRequests = allRequests.filter(r => r.request_type === 'financial');
       // Finance Officer sees reports approved by Mission Secretary
       const pendingReportsForFinance = (reportsRes.data || []).filter(r => r.status === 'approved_by_pastor');
 
       setRequests(allRequests);
-      setCollections(collectionsRes.data || []);
       setFinanceReports(reportsRes.data || []);
       setPayrollRuns(payrollRes.data || []);
 
@@ -114,7 +110,6 @@ const FinanceDashboard = () => {
       console.error('[Finance Dashboard] Error details:', error.response?.data || error.message);
       // Set empty arrays on error to prevent crashes
       setRequests([]);
-      setCollections([]);
       setFinanceReports([]);
       setStats({
         pending: 0,

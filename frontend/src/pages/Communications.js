@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import './Communications.css';
 
 const Communications = () => {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('inbox');
   const [inbox, setInbox] = useState([]);
   const [sent, setSent] = useState([]);

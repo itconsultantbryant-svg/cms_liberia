@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
 import './MissionSecretaryDashboard.css';
 
 const MissionSecretaryDashboard = () => {
-  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
-  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedReport, setSelectedReport] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
   const [action, setAction] = useState('approve'); // 'approve' or 'reject'
   const [comments, setComments] = useState('');
   const [stats, setStats] = useState({
@@ -39,7 +34,6 @@ const MissionSecretaryDashboard = () => {
       const reportsData = reportsRes.data || [];
       
       setRequests(requestsData);
-      setReports(reportsData);
       
       // Calculate stats - Mission Secretary sees PENDING requests (first approver)
       const pending = requestsData.filter(r => r.status === 'pending').length;
@@ -95,48 +89,11 @@ const MissionSecretaryDashboard = () => {
     }
   };
 
-  const handleApproveReport = async (reportId) => {
-    try {
-      await axios.post(`/api/finance-reports/${reportId}/approve-mission-secretary`, {
-        action: 'approve',
-        comments: comments
-      });
-      setShowReportModal(false);
-      setComments('');
-      fetchData();
-    } catch (error) {
-      console.error('Error approving report:', error);
-      alert(error.response?.data?.error || 'Failed to approve report');
-    }
-  };
-
-  const handleRejectReport = async (reportId) => {
-    try {
-      await axios.post(`/api/finance-reports/${reportId}/approve-mission-secretary`, {
-        action: 'reject',
-        comments: comments
-      });
-      setShowReportModal(false);
-      setComments('');
-      fetchData();
-    } catch (error) {
-      console.error('Error rejecting report:', error);
-      alert(error.response?.data?.error || 'Failed to reject report');
-    }
-  };
-
   const openModal = (request, actionType) => {
     setSelectedRequest(request);
     setAction(actionType);
     setComments('');
     setShowModal(true);
-  };
-
-  const openReportModal = (report, actionType) => {
-    setSelectedReport(report);
-    setAction(actionType);
-    setComments('');
-    setShowReportModal(true);
   };
 
   const getStatusBadge = (status) => {

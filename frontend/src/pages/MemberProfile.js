@@ -35,6 +35,7 @@ const MemberProfile = () => {
 
   useEffect(() => {
     fetchMember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const onUpload = async (e) => {

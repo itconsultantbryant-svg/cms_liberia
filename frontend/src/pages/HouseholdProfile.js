@@ -56,6 +56,7 @@ const HouseholdProfile = () => {
     axios.get('/api/members', { params: { limit: 100, allBranches: user?.isadmin ? '1' : undefined } })
       .then((r) => setMemberOptions(r.data.members || []))
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const save = async (e) => {
