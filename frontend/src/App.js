@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ChangePassword from './pages/ChangePassword';
+import MembershipJoin from './pages/MembershipJoin';
 
 // Phase 36 — code-split heavy authenticated pages
 const RoleBasedDashboard = lazy(() => import('./components/RoleBasedDashboard'));
@@ -84,6 +85,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/t/:slug/login" element={<Login />} />
+          <Route path="/t/:slug/join" element={<MembershipJoin />} />
+          <Route path="/t/:slug/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

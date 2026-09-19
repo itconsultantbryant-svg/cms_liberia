@@ -343,7 +343,7 @@ router.get('/search/relative/:term', authMiddleware, async (req, res) => {
   }
 });
 
-/** Get single member */
+/** Get single member — full dossier */
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     if (req.params.id === 'new') {
@@ -375,17 +375,249 @@ router.get('/:id', authMiddleware, async (req, res) => {
     );
 
     const households = await db.allAsync(
-      `SELECT h.id, h.name, hm.relationship
+      `SELECT h.id, h.name, hm.relationship, hm.is_primary
        FROM household_members hm
        JOIN households h ON h.id = hm.household_id
        WHERE hm.member_id = ? AND hm.church_id = ?`,
       [req.params.id, req.churchId]
     ).catch(() => []);
 
-    res.json({ member, attendance: attendance || { yes: 0, no: 0 }, documents, households });
+    const householdPeers = [];
+    for (const h of households) {
+      const peers = await db
+        .allAsync(
+          `SELECT m.id, m.firstname, m.lastname, m.membership_id, hm.relationship
+           FROM household_members hm
+           JOIN members m ON m.id = hm.member_id
+           WHERE hm.household_id = ? AND hm.member_id != ?`,
+          [h.id, req.params.id]
+        )
+        .catch(() => []);
+      householdPeers.push({ householdId: h.id, householdName: h.name, members: peers });
+    }
+
+    let relatives = [];
+    try {
+      if (member.relative) {
+        relatives = typeof member.relative === 'string' ? JSON.parse(member.relative) : member.relative;
+        if (!Array.isArray(relatives)) relatives = [];
+      }
+    } catch (_) {
+      relatives = [];
+    }
+
+    const church = await db.getAsync(
+      'SELECT id, name, short_name, slug, email, phone, website_url, address FROM churches WHERE id = ?',
+      [req.churchId]
+    ).catch(() => null);
+
+    const branch = member.branch_id
+      ? await db.getAsync('SELECT id, branchname, city, state, country FROM branches WHERE id = ?', [
+          member.branch_id
+        ]).catch(() => null)
+      : null;
+
+    const staffRecords = await db
+      .allAsync(
+        `SELECT s.id, s.position, s.employment_date, s.salary, s.currency, s.is_active,
+                d.department_name
+         FROM staff s
+         LEFT JOIN departments d ON d.id = s.department_id
+         WHERE s.church_id = ? AND (
+           lower(s.email) = lower(?) OR
+           (s.firstname = ? AND s.lastname = ?)
+         )
+         ORDER BY s.employment_date DESC NULLS LAST`,
+        [req.churchId, member.email || '', member.firstname, member.lastname]
+      )
+      .catch(async () =>
+        db
+          .allAsync(
+            `SELECT s.id, s.position, s.employment_date, s.salary, s.currency, s.is_active,
+                    d.department_name
+             FROM staff s
+             LEFT JOIN departments d ON d.id = s.department_id
+             WHERE s.church_id = ? AND (
+               lower(s.email) = lower(?) OR
+               (s.firstname = ? AND s.lastname = ?)
+             )
+             ORDER BY s.employment_date DESC`,
+            [req.churchId, member.email || '', member.firstname, member.lastname]
+          )
+          .catch(() => [])
+      );
+
+    const donations = await db
+      .allAsync(
+        `SELECT d.id, d.amount, d.currency, d.donation_date, d.fund, d.notes, d.receipt_number
+         FROM donations d
+         WHERE d.church_id = ? AND d.member_id = ?
+         ORDER BY d.donation_date DESC
+         LIMIT 100`,
+        [req.churchId, req.params.id]
+      )
+      .catch(() => []);
+
+    const pledges = await db
+      .allAsync(
+        `SELECT p.id, p.title, p.amount, p.currency, p.status, p.start_date, p.end_date, p.fund
+         FROM pledges p
+         WHERE p.church_id = ? AND p.member_id = ?
+         ORDER BY p.start_date DESC
+         LIMIT 50`,
+        [req.churchId, req.params.id]
+      )
+      .catch(() => []);
+
+    const memberCollections = await db
+      .allAsync(
+        `SELECT mc.id, mc.amount, mc.currency, mc.collection_date, mc.collection_type, mc.notes
+         FROM member_collections mc
+         WHERE mc.church_id = ? AND mc.member_id = ?
+         ORDER BY mc.collection_date DESC
+         LIMIT 100`,
+        [req.churchId, req.params.id]
+      )
+      .catch(() =>
+        db
+          .allAsync(
+            `SELECT mc.id, mc.amount, mc.collection_date, mc.type as collection_type, mc.notes
+             FROM member_collections mc
+             WHERE mc.member_id = ?
+             ORDER BY mc.collection_date DESC
+             LIMIT 100`,
+            [req.params.id]
+          )
+          .catch(() => [])
+      );
+
+    const givingSummary = {
+      donationsTotal: donations.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      collectionsTotal: memberCollections.reduce((s, d) => s + (Number(d.amount) || 0), 0),
+      pledgesCount: pledges.length,
+      donationsCount: donations.length
+    };
+
+    const linkedUser = await db
+      .getAsync(
+        `SELECT id, email, branchname, isadmin, is_login_enabled, status
+         FROM branches WHERE church_id = ? AND lower(email) = lower(?)`,
+        [req.churchId, member.email || '']
+      )
+      .catch(() => null);
+
+    res.json({
+      member,
+      attendance: attendance || { yes: 0, no: 0 },
+      documents,
+      households,
+      householdPeers,
+      relatives,
+      church: church
+        ? {
+            id: church.id,
+            name: church.name,
+            shortName: church.short_name,
+            slug: church.slug,
+            email: church.email,
+            phone: church.phone,
+            websiteUrl: church.website_url,
+            address: church.address
+          }
+        : null,
+      branch,
+      staffRecords,
+      financial: {
+        summary: givingSummary,
+        donations,
+        pledges,
+        collections: memberCollections
+      },
+      account: linkedUser
+        ? {
+            id: linkedUser.id,
+            email: linkedUser.email,
+            name: linkedUser.branchname,
+            isAdmin: !!linkedUser.isadmin,
+            loginEnabled: linkedUser.is_login_enabled !== 0 && linkedUser.is_login_enabled !== false,
+            status: linkedUser.status || 'active'
+          }
+        : null
+    });
   } catch (error) {
     console.error('Get member error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/** Approve pending membership application */
+router.post('/:id/approve', authMiddleware, attachRoleInfo, requirePermission('members.update'), async (req, res) => {
+  try {
+    const member = await db.getAsync('SELECT * FROM members WHERE id = ? AND church_id = ?', [
+      req.params.id,
+      req.churchId
+    ]);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    await db.runAsync(
+      `UPDATE members SET membership_status = 'Active', member_since = COALESCE(member_since, CURRENT_DATE),
+       updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [req.params.id]
+    );
+    await db
+      .runAsync(
+        `UPDATE pending_approvals SET status = 'approved', updated_at = CURRENT_TIMESTAMP
+         WHERE church_id = ? AND reference_id = ? AND approval_type IN ('member', 'member_join') AND status = 'pending'`,
+        [req.churchId, req.params.id]
+      )
+      .catch(() => {});
+    await audit(req, {
+      action: 'update',
+      resource: 'member',
+      resourceId: req.params.id,
+      summary: `Membership approved: ${member.firstname} ${member.lastname}`
+    });
+    res.json({
+      message: 'Member approved. You can now invite them to create login credentials from User Management.',
+      member: { ...member, membership_status: 'Active' }
+    });
+  } catch (error) {
+    console.error('[members/approve]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/** Reject pending membership application */
+router.post('/:id/reject', authMiddleware, attachRoleInfo, requirePermission('members.update'), async (req, res) => {
+  try {
+    const member = await db.getAsync('SELECT * FROM members WHERE id = ? AND church_id = ?', [
+      req.params.id,
+      req.churchId
+    ]);
+    if (!member) return res.status(404).json({ error: 'Member not found' });
+    await db.runAsync(
+      `UPDATE members SET membership_status = 'Inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [req.params.id]
+    );
+    const note = `\n[Rejected: ${req.body?.reason || 'Not approved'}]`;
+    await db
+      .runAsync(`UPDATE members SET notes = COALESCE(notes, '') || ? WHERE id = ?`, [note, req.params.id])
+      .catch(async () => {
+        await db.runAsync(`UPDATE members SET notes = ? WHERE id = ?`, [
+          `${member.notes || ''}${note}`,
+          req.params.id
+        ]);
+      });
+    await db
+      .runAsync(
+        `UPDATE pending_approvals SET status = 'rejected', updated_at = CURRENT_TIMESTAMP
+         WHERE church_id = ? AND reference_id = ? AND approval_type IN ('member', 'member_join') AND status = 'pending'`,
+        [req.churchId, req.params.id]
+      )
+      .catch(() => {});
+    res.json({ message: 'Membership application rejected' });
+  } catch (error) {
+    console.error('[members/reject]', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

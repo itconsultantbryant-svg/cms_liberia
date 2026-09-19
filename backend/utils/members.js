@@ -1,4 +1,5 @@
 const MEMBERSHIP_STATUSES = [
+  'Pending',
   'Active',
   'Inactive',
   'Visitor',

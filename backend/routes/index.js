@@ -51,6 +51,7 @@ function mountApi(app) {
 
   app.use('/api/tenant', require('./tenantPublic'));
   app.use('/api/auth', require('./auth'));
+  app.use('/api/public/membership', require('./publicMembers'));
   app.use('/api/superadmin', require('./superadmin'));
   app.use('/api/church', ...tenantGate, require('./church'));
   app.use('/api/dashboard', ...tenantGate, require('./dashboard'));

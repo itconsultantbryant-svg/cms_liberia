@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import MembershipQrCard from '../components/MembershipQrCard';
+import { assetUrl } from '../config/api';
 import './Members.css';
 
-const STATUSES = ['', 'Active', 'Inactive', 'Visitor', 'Transferred', 'Deceased', 'Suspended'];
+const STATUSES = ['', 'Pending', 'Active', 'Inactive', 'Visitor', 'Transferred', 'Deceased', 'Suspended'];
 
 const Members = () => {
   const { user } = useAuth();
@@ -18,8 +20,14 @@ const Members = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const canManage = user?.isadmin || user?.permissionKeys?.includes?.('members.create');
+  const slug = user?.church?.slug;
+  const joinUrl =
+    typeof window !== 'undefined' && slug
+      ? `${window.location.origin}/t/${slug}/join`
+      : '';
 
   const fetchMembers = useCallback(async (page = 1) => {
     setLoading(true);
@@ -119,6 +127,14 @@ const Members = () => {
           </button>
           {canManage && (
             <>
+              {slug && (
+                <button type="button" className="btn btn-secondary" onClick={() => setShowQr(true)}>
+                  Membership QR
+                </button>
+              )}
+              <button type="button" className="btn btn-secondary" onClick={() => setStatus('Pending')}>
+                Pending apps
+              </button>
               <label className="btn btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
                 {importing ? 'Importing…' : 'Import CSV'}
                 <input type="file" accept=".csv,text/csv" hidden onChange={onImport} />
@@ -130,6 +146,28 @@ const Members = () => {
           )}
         </div>
       </div>
+
+      {showQr && joinUrl && (
+        <div className="modal-overlay" onClick={() => setShowQr(false)} role="presentation">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3>Membership QR code</h3>
+            <p className="muted">
+              Print or share this code. Visitors scan it to open the membership form. Submissions await
+              admin approval before login credentials are assigned.
+            </p>
+            <MembershipQrCard
+              joinUrl={joinUrl}
+              logoUrl={assetUrl(user?.church?.logoUrl)}
+              churchName={user?.church?.shortName || user?.church?.name}
+            />
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowQr(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}

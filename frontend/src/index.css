@@ -528,6 +528,13 @@ table.data-table {
   color: #166534;
 }
 
+.member-status.status-pending,
+.status-pill.status-pending,
+.status-badge.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .member-status.status-inactive,
 .member-status.status-suspended,
 .status-pill.status-suspended,

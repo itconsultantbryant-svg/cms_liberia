@@ -8,6 +8,7 @@ import './Auth.css';
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [portal, setPortal] = useState(null);
@@ -91,6 +92,8 @@ const Login = () => {
         }
       : undefined;
 
+  const forgotPath = routeSlug ? `/t/${routeSlug}/forgot-password` : '/forgot-password';
+
   return (
     <div className={`auth-container${portal ? ' auth-container--tenant' : ''}`} style={containerStyle}>
       <div className="auth-card">
@@ -110,8 +113,9 @@ const Login = () => {
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="login-email">Email</label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -120,14 +124,25 @@ const Login = () => {
             />
           </div>
           <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+            <label htmlFor="login-password">Password</label>
+            <div className="password-field">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
@@ -139,13 +154,8 @@ const Login = () => {
           </button>
         </form>
         <p className="auth-link">
-          <Link to="/forgot-password">Forgot password?</Link>
+          <Link to={forgotPath}>Forgot password?</Link>
         </p>
-        {!portal && (
-          <p className="auth-link">
-            Don't have an account? <Link to="/register">Register</Link>
-          </p>
-        )}
       </div>
     </div>
   );

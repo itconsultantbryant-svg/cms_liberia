@@ -1,64 +1,30 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import React from 'react';
+import { Link, useParams } from 'react-router-dom';
 import './Auth.css';
 
+/**
+ * Password reset is admin-mediated — users contact their church administrator.
+ */
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [debugToken, setDebugToken] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-    setDebugToken('');
-    setLoading(true);
-    try {
-      const { data } = await axios.post('/api/auth/forgot-password', { email });
-      setMessage(data.message || 'If an account exists, reset instructions were issued.');
-      if (data.resetToken) {
-        setDebugToken(data.resetToken);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Request failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { slug } = useParams();
+  const loginPath = slug ? `/t/${slug}/login` : '/login';
 
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h2>Forgot Password</h2>
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Sending...' : 'Send reset link'}
-          </button>
-        </form>
-        {debugToken && (
-          <p className="auth-link" style={{ wordBreak: 'break-all', fontSize: 13 }}>
-            Dev reset link:{' '}
-            <Link to={`/reset-password?token=${encodeURIComponent(debugToken)}`}>
-              Reset password
-            </Link>
-          </p>
-        )}
+        <p className="auth-church-name" style={{ textAlign: 'left', marginBottom: 16 }}>
+          For security, password resets are handled by your church administrator.
+        </p>
+        <div className="info-message" style={{ textAlign: 'left' }}>
+          <strong>Please contact your church admin</strong> and ask them to reset your account
+          access. Provide the email address you use to sign in so they can verify your identity.
+        </div>
+        <p className="muted" style={{ textAlign: 'left', fontSize: 14, marginTop: 16 }}>
+          Admins can reset access from <em>User Management</em> in the church portal.
+        </p>
         <p className="auth-link">
-          <Link to="/login">Back to login</Link>
+          <Link to={loginPath}>Back to login</Link>
         </p>
       </div>
     </div>
