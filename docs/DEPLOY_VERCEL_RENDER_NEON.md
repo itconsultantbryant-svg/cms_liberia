@@ -6,7 +6,7 @@ Recommended layout: one Vercel project with **frontend + backend services**, Neo
 |-------|------|--------|
 | Frontend + API | **Vercel Services** | Root [`vercel.json`](../vercel.json) routes `/api` → backend, everything else → CRA |
 | Database | **Neon** | Postgres via `DATABASE_URL` (pooled + `sslmode=require`) |
-| Files | Object storage / disk | Prefer durable storage in production; local `uploads/` is ephemeral on serverless |
+| Files | Object storage / disk | Branding images (logo/favicon/login bg) are also stored in Neon (`stored_files.content_base64`) and served from `/api/files/public/branding/...` so they survive serverless ephemeral disks |
 
 **Alternative:** frontend-only on Vercel + API on **Render** (see § Alternative: Render API below). Set `REACT_APP_API_URL` to the Render origin in that case.
 
