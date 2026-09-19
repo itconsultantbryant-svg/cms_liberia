@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { assetUrl } from '../config/api';
 import './Dashboards.css';
 import './ChurchAdminOverview.css';
 
@@ -56,9 +57,9 @@ const ChurchAdminOverview = () => {
   return (
     <div className="cao-page">
       <header className="cao-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        {church.logoUrl || user?.church?.logoUrl ? (
+        {assetUrl(church.logoUrl || user?.church?.logoUrl) ? (
           <img
-            src={church.logoUrl || user.church.logoUrl}
+            src={assetUrl(church.logoUrl || user.church.logoUrl)}
             alt=""
             style={{ height: 48, width: 48, objectFit: 'contain', borderRadius: 8 }}
             loading="lazy"

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { assetUrl } from '../config/api';
 import './Auth.css';
 
 const Login = () => {
@@ -40,7 +41,7 @@ const Login = () => {
               link.rel = 'icon';
               document.head.appendChild(link);
             }
-            link.href = data.church.faviconUrl;
+            link.href = assetUrl(data.church.faviconUrl);
           }
           if (data.church.name) {
             document.title = `${data.church.shortName || data.church.name} · Login`;
@@ -74,7 +75,8 @@ const Login = () => {
   };
 
   const title = portal?.shortName || portal?.name || 'Login';
-  const bg = portal?.loginBackgroundUrl;
+  const bg = assetUrl(portal?.loginBackgroundUrl);
+  const logo = assetUrl(portal?.logoUrl);
   const primary = portal?.primaryColor || '#2c3e50';
   const secondary = portal?.secondaryColor || '#3498db';
   const containerStyle = bg
@@ -92,12 +94,12 @@ const Login = () => {
   return (
     <div className={`auth-container${portal ? ' auth-container--tenant' : ''}`} style={containerStyle}>
       <div className="auth-card">
-        {portal?.logoUrl && (
+        {logo && (
           <img
             className="auth-logo"
-            src={portal.logoUrl}
+            src={logo}
             alt={portal.name || 'Church'}
-            loading="lazy"
+            loading="eager"
             decoding="async"
           />
         )}

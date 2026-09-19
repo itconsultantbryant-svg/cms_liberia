@@ -11,7 +11,8 @@ const {
   createUpload,
   registerStoredFile,
   accessUrl,
-  signedUrl,
+  publicBrandingUrl,
+  resolveBrandingAssetUrl,
   ensureChurchRoot
 } = require('../utils/fileStorage');
 
@@ -26,11 +27,25 @@ function requireChurchBrandingEditor(req, res, next) {
 }
 
 function resolveAssetUrl(value) {
-  if (!value) return null;
-  if (String(value).startsWith('http') || String(value).startsWith('/api/files/')) return value;
-  // Legacy public path still works for old uploads
-  if (String(value).startsWith('/uploads/')) return value;
-  return value;
+  return resolveBrandingAssetUrl(value);
+}
+
+function brandingPayload(church, full) {
+  const row = full || church;
+  const summary = churchSummary(row);
+  return {
+    ...summary,
+    websiteUrl: row.website_url || summary.websiteUrl || null,
+    timezone: row.timezone || summary.timezone || null,
+    email: row.email || null,
+    phone: row.phone || null,
+    shortName: row.short_name || summary.shortName || null,
+    logoUrl: resolveAssetUrl(row.logo_url),
+    faviconUrl: resolveAssetUrl(row.favicon_url),
+    loginBackgroundUrl: resolveAssetUrl(row.login_background_url),
+    primaryColor: row.primary_color || summary.primaryColor,
+    secondaryColor: row.secondary_color || summary.secondaryColor
+  };
 }
 
 router.use(authMiddleware, requireTenant, attachRoleInfo);
@@ -40,20 +55,7 @@ router.get('/branding', async (req, res) => {
   try {
     const church = await db.getAsync('SELECT * FROM churches WHERE id = ?', [req.churchId]);
     if (!church) return res.status(404).json({ error: 'Church not found' });
-    res.json({
-      branding: {
-        ...churchSummary(church),
-        faviconUrl: resolveAssetUrl(church.favicon_url),
-        websiteUrl: church.website_url || null,
-        timezone: church.timezone || null,
-        email: church.email || null,
-        phone: church.phone || null,
-        shortName: church.short_name || null,
-        logoUrl: resolveAssetUrl(church.logo_url),
-        loginBackgroundUrl: resolveAssetUrl(church.login_background_url),
-        faviconUrlResolved: resolveAssetUrl(church.favicon_url)
-      }
-    });
+    res.json({ branding: brandingPayload(church) });
   } catch (error) {
     console.error('[church/branding GET]', error);
     res.status(500).json({ error: error.message });
@@ -108,14 +110,7 @@ router.patch('/branding', requireChurchBrandingEditor, async (req, res) => {
     });
     res.json({
       message: 'Branding updated',
-      branding: {
-        ...churchSummary(church),
-        faviconUrl: resolveAssetUrl(full.favicon_url),
-        logoUrl: resolveAssetUrl(full.logo_url),
-        timezone: full.timezone,
-        email: full.email,
-        phone: full.phone
-      }
+      branding: brandingPayload(church, full)
     });
   } catch (error) {
     console.error('[church/branding PATCH]', error);
@@ -146,7 +141,7 @@ function uploadHandler(kind) {
         const stored = await registerStoredFile(req, req.file, 'branding', {
           visibility: 'public_branding'
         });
-        const url = signedUrl(stored, 86400 * 7);
+        const url = publicBrandingUrl(stored);
         let column = 'logo_url';
         if (kind === 'favicon') column = 'favicon_url';
         else if (kind === 'login-background' || kind === 'login_background') column = 'login_background_url';
@@ -162,11 +157,7 @@ function uploadHandler(kind) {
           url,
           fileId: stored.id,
           accessUrl: accessUrl(stored),
-          branding: {
-            ...churchSummary(church),
-            logoUrl: resolveAssetUrl(full.logo_url),
-            faviconUrl: resolveAssetUrl(full.favicon_url)
-          }
+          branding: brandingPayload(church, full)
         });
       } catch (error) {
         console.error(`[church/branding ${kind}]`, error);

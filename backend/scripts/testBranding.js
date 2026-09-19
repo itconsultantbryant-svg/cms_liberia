@@ -120,9 +120,10 @@ async function run() {
   });
   assert(upload.status === 200 && upload.body.url, 'Upload logo');
   assert(
-    String(upload.body.url).includes('/api/files/signed/') ||
+    String(upload.body.url).includes('/api/files/public/branding/') ||
+      String(upload.body.url).includes('/api/files/signed/') ||
       String(upload.body.url).includes('/uploads/branding/'),
-    'Logo URL is signed or legacy branding path'
+    'Logo URL is public branding, signed, or legacy path'
   );
   assert(upload.body.fileId, 'Upload returns stored fileId');
 

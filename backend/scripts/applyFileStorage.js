@@ -29,6 +29,12 @@ async function apply() {
     `CREATE INDEX IF NOT EXISTS idx_stored_files_category ON stored_files(church_id, category)`
   );
 
+  try {
+    await db.runAsync(`ALTER TABLE stored_files ADD COLUMN content_base64 TEXT`);
+  } catch (_) {
+    /* already exists */
+  }
+
   // Optional link column on church_documents
   try {
     await db.runAsync(

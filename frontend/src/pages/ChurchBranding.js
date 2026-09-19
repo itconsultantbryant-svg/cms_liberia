@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { assetUrl } from '../config/api';
 import './ChurchBranding.css';
 
 const DEFAULTS = {
@@ -42,9 +43,9 @@ const ChurchBranding = () => {
           email: b.email || '',
           phone: b.phone || ''
         });
-        setLogoUrl(b.logoUrl || null);
-        setFaviconUrl(b.faviconUrl || b.faviconUrlResolved || null);
-        setLoginBackgroundUrl(b.loginBackgroundUrl || null);
+        setLogoUrl(assetUrl(b.logoUrl) || null);
+        setFaviconUrl(assetUrl(b.faviconUrl || b.faviconUrlResolved) || null);
+        setLoginBackgroundUrl(assetUrl(b.loginBackgroundUrl) || null);
       } catch (err) {
         setError(err.response?.data?.error || err.message || 'Failed to load branding');
       } finally {
@@ -72,8 +73,9 @@ const ChurchBranding = () => {
       const { data } = await axios.patch('/api/church/branding', form);
       setMessage(data.message || 'Saved');
       if (data.branding) {
-        setLogoUrl(data.branding.logoUrl || logoUrl);
-        setFaviconUrl(data.branding.faviconUrl || faviconUrl);
+        setLogoUrl(assetUrl(data.branding.logoUrl) || logoUrl);
+        setFaviconUrl(assetUrl(data.branding.faviconUrl) || faviconUrl);
+        setLoginBackgroundUrl(assetUrl(data.branding.loginBackgroundUrl) || loginBackgroundUrl);
       }
       await afterBranding(data.branding);
     } catch (err) {
@@ -94,9 +96,11 @@ const ChurchBranding = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setMessage(data.message || 'Uploaded');
-      if (kind === 'logo') setLogoUrl(data.url);
-      else if (kind === 'favicon') setFaviconUrl(data.url);
-      else if (kind === 'login-background') setLoginBackgroundUrl(data.url);
+      if (kind === 'logo') setLogoUrl(assetUrl(data.url) || assetUrl(data.branding?.logoUrl));
+      else if (kind === 'favicon') setFaviconUrl(assetUrl(data.url) || assetUrl(data.branding?.faviconUrl));
+      else if (kind === 'login-background') {
+        setLoginBackgroundUrl(assetUrl(data.url) || assetUrl(data.branding?.loginBackgroundUrl));
+      }
       await afterBranding(data.branding);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Upload failed');

@@ -10,8 +10,15 @@ const db = require('../database');
 const { getJwtSecret } = require('./authSecurity');
 const { ApiError } = require('../middleware/errorHandler');
 
-const UPLOAD_ROOT = path.join(__dirname, '../uploads');
-const CHURCHES_ROOT = path.join(UPLOAD_ROOT, 'churches');
+function getUploadRoot() {
+  return process.env.UPLOADS_PATH
+    ? path.resolve(process.env.UPLOADS_PATH)
+    : path.join(__dirname, '../uploads');
+}
+
+function getChurchesRoot() {
+  return path.join(getUploadRoot(), 'churches');
+}
 
 const CATEGORIES = [
   'branding',
@@ -99,7 +106,7 @@ function ensureDir(dir) {
 function ensureChurchRoot(churchId) {
   const id = Number(churchId);
   if (!id) return null;
-  const root = path.join(CHURCHES_ROOT, String(id));
+  const root = path.join(getChurchesRoot(), String(id));
   ensureDir(root);
   for (const cat of CATEGORIES) {
     ensureDir(path.join(root, cat));
@@ -218,7 +225,23 @@ async function registerStoredFile(req, file, category, { visibility } = {}) {
     ]
   );
 
-  return getStoredFile(result.lastID, churchId);
+  const fileId = result.lastID;
+  // Persist branding bytes in DB so assets survive ephemeral serverless disks.
+  const vis = visibility || rules.visibility;
+  if (vis === 'public_branding' && file.path && fs.existsSync(file.path)) {
+    try {
+      const b64 = fs.readFileSync(file.path).toString('base64');
+      await db.runAsync(`UPDATE stored_files SET content_base64 = ? WHERE id = ? AND church_id = ?`, [
+        b64,
+        fileId,
+        churchId
+      ]);
+    } catch (err) {
+      console.warn('[fileStorage] content_base64 persist skipped:', err.message);
+    }
+  }
+
+  return getStoredFile(fileId, churchId);
 }
 
 async function getStoredFile(id, churchId) {
@@ -229,9 +252,10 @@ async function getStoredFile(id, churchId) {
 }
 
 function absolutePath(relativePath) {
-  const abs = path.join(UPLOAD_ROOT, relativePath);
+  const root = getUploadRoot();
+  const abs = path.join(root, relativePath);
   const resolved = path.resolve(abs);
-  if (!resolved.startsWith(path.resolve(UPLOAD_ROOT))) {
+  if (!resolved.startsWith(path.resolve(root))) {
     throw new ApiError(400, 'Invalid file path', 'FILE_PATH');
   }
   return resolved;
@@ -240,6 +264,12 @@ function absolutePath(relativePath) {
 function accessUrl(fileRow) {
   if (!fileRow) return null;
   return `/api/files/${fileRow.id}`;
+}
+
+/** Stable public URL for branding assets (no expiry; safe for <img>/favicon/CSS). */
+function publicBrandingUrl(fileRow) {
+  if (!fileRow?.id || !fileRow?.church_id) return null;
+  return `/api/files/public/branding/${fileRow.church_id}/${fileRow.id}`;
 }
 
 /**
@@ -252,7 +282,7 @@ function signFileAccess(fileId, churchId, ttlSeconds = 3600) {
   return Buffer.from(`${payload}.${sig}`).toString('base64url');
 }
 
-function verifyFileAccessToken(token) {
+function verifyFileAccessToken(token, { allowExpired = false } = {}) {
   try {
     const raw = Buffer.from(token, 'base64url').toString('utf8');
     const parts = raw.split('.');
@@ -264,7 +294,7 @@ function verifyFileAccessToken(token) {
     if (!crypto.timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(expected, 'utf8'))) {
       return null;
     }
-    if (Number(exp) < Math.floor(Date.now() / 1000)) return null;
+    if (!allowExpired && Number(exp) < Math.floor(Date.now() / 1000)) return null;
     return { fileId: Number(fileId), churchId: Number(churchId) };
   } catch (_) {
     return null;
@@ -277,9 +307,60 @@ function signedUrl(fileRow, ttlSeconds = 3600) {
   return `/api/files/signed/${token}`;
 }
 
+/**
+ * Normalize a church branding asset URL to a durable public path.
+ * Rewrites expired signed tokens and leaves http(s)/data/legacy paths alone.
+ */
+function resolveBrandingAssetUrl(storedValue) {
+  if (!storedValue) return null;
+  const value = String(storedValue);
+  if (value.startsWith('http') || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value;
+  }
+  const publicMatch = value.match(/^\/api\/files\/public\/branding\/(\d+)\/(\d+)/);
+  if (publicMatch) return `/api/files/public/branding/${publicMatch[1]}/${publicMatch[2]}`;
+
+  const signedMatch = value.match(/^\/api\/files\/signed\/([^/?#]+)/);
+  if (signedMatch) {
+    const parsed = verifyFileAccessToken(signedMatch[1], { allowExpired: true });
+    if (parsed) {
+      return `/api/files/public/branding/${parsed.churchId}/${parsed.fileId}`;
+    }
+  }
+
+  if (value.startsWith('/api/files/') || value.startsWith('/uploads/')) return value;
+  return value;
+}
+
+function sendStoredFile(res, file) {
+  res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${(file.original_name || file.stored_name || 'file').replace(/"/g, '')}"`
+  );
+
+  const abs = absolutePath(file.relative_path);
+  if (fs.existsSync(abs)) {
+    fs.createReadStream(abs).pipe(res);
+    return;
+  }
+  if (file.content_base64) {
+    res.send(Buffer.from(file.content_base64, 'base64'));
+    return;
+  }
+  const err = new ApiError(404, 'File missing on disk', 'FILE_MISSING');
+  throw err;
+}
+
 module.exports = {
-  UPLOAD_ROOT,
-  CHURCHES_ROOT,
+  get UPLOAD_ROOT() {
+    return getUploadRoot();
+  },
+  get CHURCHES_ROOT() {
+    return getChurchesRoot();
+  },
   CATEGORIES,
   CATEGORY_RULES,
   ensureChurchRoot,
@@ -290,7 +371,10 @@ module.exports = {
   getStoredFile,
   absolutePath,
   accessUrl,
+  publicBrandingUrl,
   signedUrl,
   signFileAccess,
-  verifyFileAccessToken
+  verifyFileAccessToken,
+  resolveBrandingAssetUrl,
+  sendStoredFile
 };

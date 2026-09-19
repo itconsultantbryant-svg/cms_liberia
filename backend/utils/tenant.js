@@ -1,4 +1,5 @@
 const db = require('../database');
+const { resolveBrandingAssetUrl } = require('./fileStorage');
 
 function slugify(text) {
   return String(text || '')
@@ -37,9 +38,9 @@ function churchSummary(church) {
     shortName: church.short_name,
     slug: church.slug,
     websiteUrl: church.website_url,
-    logoUrl: church.logo_url,
-    faviconUrl: church.favicon_url,
-    loginBackgroundUrl: church.login_background_url || null,
+    logoUrl: resolveBrandingAssetUrl(church.logo_url),
+    faviconUrl: resolveBrandingAssetUrl(church.favicon_url),
+    loginBackgroundUrl: resolveBrandingAssetUrl(church.login_background_url || null),
     primaryColor: church.primary_color || '#2c3e50',
     secondaryColor: church.secondary_color || '#3498db',
     currency: church.currency,

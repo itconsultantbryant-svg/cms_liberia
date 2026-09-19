@@ -1,9 +1,8 @@
 /**
- * Phase 33 — authorized file download / signed access.
+ * Phase 33 — authorized file download / signed access + public branding.
  */
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { requireTenant } = require('../middleware/tenant');
@@ -13,6 +12,7 @@ const {
   absolutePath,
   signedUrl,
   verifyFileAccessToken,
+  sendStoredFile,
   CATEGORIES,
   CATEGORY_RULES
 } = require('../utils/fileStorage');
@@ -35,6 +35,25 @@ router.get(
   })
 );
 
+/**
+ * Public branding assets — no auth, no expiry.
+ * Only serves rows with visibility = public_branding (logo/favicon/login bg).
+ * Falls back to DB content_base64 when disk is gone (serverless).
+ */
+router.get(
+  '/public/branding/:churchId/:fileId',
+  asyncHandler(async (req, res) => {
+    const churchId = Number(req.params.churchId);
+    const fileId = Number(req.params.fileId);
+    if (!churchId || !fileId) throw new ApiError(400, 'Invalid branding file path', 'FILE_PATH');
+    const file = await getStoredFile(fileId, churchId);
+    if (!file || file.visibility !== 'public_branding') {
+      throw new ApiError(404, 'Branding file not found', 'FILE_NOT_FOUND');
+    }
+    sendStoredFile(res, file);
+  })
+);
+
 /** Signed access — no Bearer header (for <img src>) */
 router.get(
   '/signed/:token',
@@ -43,15 +62,14 @@ router.get(
     if (!parsed) throw new ApiError(401, 'Invalid or expired file token', 'FILE_TOKEN');
     const file = await getStoredFile(parsed.fileId, parsed.churchId);
     if (!file) throw new ApiError(404, 'File not found', 'FILE_NOT_FOUND');
-    const abs = absolutePath(file.relative_path);
-    if (!fs.existsSync(abs)) throw new ApiError(404, 'File missing on disk', 'FILE_MISSING');
-    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${(file.original_name || file.stored_name).replace(/"/g, '')}"`
-    );
-    fs.createReadStream(abs).pipe(res);
+    try {
+      sendStoredFile(res, file);
+    } catch (err) {
+      if (err.code === 'FILE_MISSING' || err.status === 404) {
+        throw new ApiError(404, 'File missing on disk', 'FILE_MISSING');
+      }
+      throw err;
+    }
   })
 );
 
@@ -79,16 +97,8 @@ router.get(
   asyncHandler(async (req, res) => {
     const file = await getStoredFile(req.params.id, req.churchId);
     if (!file) throw new ApiError(404, 'File not found', 'FILE_NOT_FOUND');
-    const abs = absolutePath(file.relative_path);
-    if (!fs.existsSync(abs)) throw new ApiError(404, 'File missing on disk', 'FILE_MISSING');
 
     const disposition = req.query.download === '1' ? 'attachment' : 'inline';
-    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `${disposition}; filename="${(file.original_name || file.stored_name).replace(/"/g, '')}"`
-    );
     if (req.query.sign === '1') {
       return ok(res, {
         id: file.id,
@@ -100,7 +110,24 @@ router.get(
         category: file.category
       });
     }
-    fs.createReadStream(abs).pipe(res);
+
+    res.setHeader('Content-Type', file.mime_type || 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${(file.original_name || file.stored_name).replace(/"/g, '')}"`
+    );
+
+    const abs = absolutePath(file.relative_path);
+    if (fs.existsSync(abs)) {
+      fs.createReadStream(abs).pipe(res);
+      return;
+    }
+    if (file.content_base64) {
+      res.send(Buffer.from(file.content_base64, 'base64'));
+      return;
+    }
+    throw new ApiError(404, 'File missing on disk', 'FILE_MISSING');
   })
 );
 

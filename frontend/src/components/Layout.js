@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import axios from 'axios';
 import { SIDEBAR_SECTIONS, SIDEBAR_CONFIG, canShowSidebarItem } from '../config/permissions';
+import { assetUrl } from '../config/api';
 import './Layout.css';
 
 const COLLAPSE_KEY = 'cms_sidebar_collapsed';
@@ -39,6 +41,8 @@ function breadcrumbsFor(pathname) {
 
 const Layout = ({ children }) => {
   const { user, logout, selectBranch, endSupportAccess } = useAuth();
+  const { logoUrl: themeLogoUrl } = useTheme();
+  const sidebarLogo = themeLogoUrl || assetUrl(user?.church?.logoUrl);
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState([]);
@@ -262,12 +266,12 @@ const Layout = ({ children }) => {
       <aside className="sidebar" aria-label="Main navigation">
         <div className="sidebar-header">
           <Link to="/" className="sidebar-logo" onClick={() => setMobileOpen(false)}>
-            {user?.church?.logoUrl ? (
+            {sidebarLogo ? (
               <img
-                src={user.church.logoUrl}
-                alt={user.church.shortName || user.church.name || 'Church'}
+                src={sidebarLogo}
+                alt={user.church?.shortName || user.church?.name || 'Church'}
                 className="sidebar-logo-img"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
               />
             ) : (

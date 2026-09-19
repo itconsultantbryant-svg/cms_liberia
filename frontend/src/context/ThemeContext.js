@@ -1,20 +1,17 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
+import { assetUrl } from '../config/api';
 
 const ThemeContext = createContext({
   primaryColor: '#2c3e50',
   secondaryColor: '#3498db',
   logoUrl: null,
+  faviconUrl: null,
+  loginBackgroundUrl: null,
   churchName: null
 });
 
 export const useTheme = () => useContext(ThemeContext);
-
-function resolveAssetUrl(url) {
-  if (!url) return null;
-  if (url.startsWith('http') || url.startsWith('data:')) return url;
-  return url;
-}
 
 export const ThemeProvider = ({ children }) => {
   const { user } = useAuth();
@@ -24,8 +21,9 @@ export const ThemeProvider = ({ children }) => {
     () => ({
       primaryColor: church?.primaryColor || '#2c3e50',
       secondaryColor: church?.secondaryColor || '#3498db',
-      logoUrl: resolveAssetUrl(church?.logoUrl),
-      faviconUrl: resolveAssetUrl(church?.faviconUrl),
+      logoUrl: assetUrl(church?.logoUrl),
+      faviconUrl: assetUrl(church?.faviconUrl),
+      loginBackgroundUrl: assetUrl(church?.loginBackgroundUrl),
       churchName: church?.shortName || church?.name || null
     }),
     [church]
@@ -49,9 +47,7 @@ export const ThemeProvider = ({ children }) => {
     }
 
     if (theme.churchName) {
-      const base = document.title.split('·')[0].trim() || 'Church Management';
       document.title = `${theme.churchName} · CMS`;
-      void base;
     }
   }, [theme]);
 
